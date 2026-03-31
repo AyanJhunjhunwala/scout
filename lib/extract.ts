@@ -1,19 +1,21 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { CallExtraction, Mission } from "./types";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function extractCallData(
   transcript: string,
   mission: Mission
 ): Promise<CallExtraction> {
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `Extract restaurant intel from this phone call transcript.
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+    },
+  });
+
+  const prompt = `Extract restaurant intel from this phone call transcript.
+
 Return JSON with exactly these fields:
 {
   "wait_time": "20 minutes" | "no wait" | "45 min+" | null,
@@ -24,17 +26,17 @@ Return JSON with exactly these fields:
   "recommendation": "best_bet" | "worth_it" | "skip",
   "recommendation_reason": "one sentence explaining why",
   "special_notes": "anything else notable" | null
-}`,
-      },
-      {
-        role: "user",
-        content: `Mission context: ${mission.party_size} people, ${mission.desired_time}, wants ${mission.vibe || "any"} vibe, dietary: ${mission.dietary_needs?.join(", ") || "none"}\n\nTranscript:\n${transcript}`,
-      },
-    ],
-  });
+}
 
-  const content = response.choices[0].message.content;
-  if (!content) throw new Error("No content in LLM response");
+Mission context: ${mission.party_size} people, ${mission.desired_time}, wants ${mission.vibe || "any"} vibe, dietary: ${mission.dietary_needs?.join(", ") || "none"}
 
-  return JSON.parse(content) as CallExtraction;
+Transcript:
+${transcript}`;
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  if (!text) throw new Error("No content in Gemini response");
+
+  return JSON.parse(text) as CallExtraction;
 }
