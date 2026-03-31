@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { createSupabaseBrowser } from "@/lib/supabase";
 import type { Mission } from "@/lib/types";
 import { formatDistanceToNow } from "date-fns";
@@ -68,12 +69,13 @@ export default function DashboardPage() {
             Your past and active scouting missions
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/scout">
-            <Plus className="mr-2 h-4 w-4" />
-            New Scout
-          </Link>
-        </Button>
+        <Link
+          href="/dashboard/scout"
+          className={cn(buttonVariants())}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          New Scout
+        </Link>
       </div>
 
       {loading ? (
@@ -86,9 +88,12 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-12">
             <p className="text-muted-foreground">No missions yet</p>
-            <Button asChild>
-              <Link href="/dashboard/scout">Start your first scout</Link>
-            </Button>
+            <Link
+              href="/dashboard/scout"
+              className={cn(buttonVariants())}
+            >
+              Start your first scout
+            </Link>
           </CardContent>
         </Card>
       ) : (

@@ -1,20 +1,23 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Phone, Zap, Clock, ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Hero */}
       <header className="flex items-center justify-between border-b px-6 py-4">
         <span className="text-xl font-semibold">Scout</span>
         <div className="flex gap-2">
-          <Button variant="ghost" asChild>
-            <Link href="/dashboard">Dashboard</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/dashboard/scout">Start Scouting</Link>
-          </Button>
+          <Link
+            href="/dashboard"
+            className={cn(buttonVariants({ variant: "ghost" }))}
+          >
+            Dashboard
+          </Link>
+          <Link href="/dashboard/scout" className={cn(buttonVariants())}>
+            Start Scouting
+          </Link>
         </div>
       </header>
 
@@ -31,16 +34,16 @@ export default function LandingPage() {
             all in under 3 minutes.
           </p>
           <div className="mt-8 flex justify-center gap-4">
-            <Button size="lg" asChild>
-              <Link href="/dashboard/scout">
-                Start Scouting
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            <Link
+              href="/dashboard/scout"
+              className={cn(buttonVariants({ size: "lg" }))}
+            >
+              Start Scouting
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
           </div>
         </div>
 
-        {/* Feature grid */}
         <div className="mx-auto mt-20 grid max-w-3xl gap-8 sm:grid-cols-3">
           <div className="text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
@@ -74,7 +77,6 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* How it works */}
         <div className="mx-auto mt-24 max-w-2xl">
           <h2 className="text-center text-2xl font-bold">How it works</h2>
           <div className="mt-8 space-y-6">

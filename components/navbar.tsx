@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, Settings, History, Menu, X } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -24,39 +25,37 @@ export function Navbar() {
           <span className="text-xl">Scout</span>
         </Link>
 
-        {/* Desktop nav */}
         <div className="hidden items-center gap-1 md:flex">
           {navItems.map((item) => (
-            <Button
+            <Link
               key={item.href}
-              variant="ghost"
-              size="sm"
-              asChild
+              href={item.href}
               className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
                 "gap-2",
                 pathname === item.href && "bg-accent text-accent-foreground"
               )}
             >
-              <Link href={item.href}>
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            </Button>
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
           ))}
         </div>
 
-        {/* Mobile toggle */}
         <Button
           variant="ghost"
           size="icon"
           className="md:hidden"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {mobileOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
         </Button>
       </div>
 
-      {/* Mobile nav */}
       {mobileOpen && (
         <div className="border-t px-4 pb-3 md:hidden">
           {navItems.map((item) => (
