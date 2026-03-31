@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,12 +57,10 @@ export function LiveCallCard({
     <Card className={cn("overflow-hidden transition-all", !isDone && "animate-in fade-in-0")}>
       {restaurant.photo_ref && (
         <div className="relative h-32 w-full bg-muted">
-          <Image
+          <img
             src={`/api/photos?ref=${restaurant.photo_ref}&w=600`}
             alt={restaurant.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between">

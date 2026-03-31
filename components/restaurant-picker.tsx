@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -70,12 +69,10 @@ export function RestaurantPicker({
           >
             {restaurant.photo_ref && (
               <div className="relative h-36 w-full bg-muted">
-                <Image
+                <img
                   src={`/api/photos?ref=${restaurant.photo_ref}&w=600`}
                   alt={restaurant.name}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="absolute inset-0 h-full w-full object-cover"
                 />
                 <div className="absolute top-2 right-2">
                   <Checkbox
