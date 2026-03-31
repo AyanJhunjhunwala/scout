@@ -3,13 +3,16 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, PhoneOff, Loader2 } from "lucide-react";
+import { Phone, PhoneOff, Loader2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ScoutCall, CallStatus, Restaurant } from "@/lib/types";
+import { LiveAudioPlayer } from "@/components/live-audio-player";
+import type { ScoutCall, CallStatus, Restaurant, Mission } from "@/lib/types";
+import { buildOpenTableSearchUrl } from "@/lib/opentable";
 
 interface LiveCallCardProps {
   call: ScoutCall;
   restaurant: Restaurant;
+  mission?: Mission;
   onBook?: (callId: string) => void;
   bookingLoading?: boolean;
 }
@@ -45,6 +48,7 @@ function RecommendationBadge({ rec }: { rec: string | null }) {
 export function LiveCallCard({
   call,
   restaurant,
+  mission,
   onBook,
   bookingLoading,
 }: LiveCallCardProps) {
@@ -52,6 +56,9 @@ export function LiveCallCard({
   const isDone = ["ended", "no_answer", "voicemail", "failed"].includes(
     call.status
   );
+  const openTableUrl = mission
+    ? buildOpenTableSearchUrl(restaurant, mission)
+    : null;
 
   return (
     <Card className={cn("overflow-hidden transition-all", !isDone && "animate-in fade-in-0")}>
@@ -89,25 +96,35 @@ export function LiveCallCard({
 
       <CardContent className="space-y-3 p-4">
         {!isDone && call.status === "connected" && (
-          <div className="rounded-lg bg-muted/50 p-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Live transcript
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed">
-              {call.transcript || (
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Listening...
-                </span>
-              )}
-            </p>
+          <div className="space-y-2">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Live transcript
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed">
+                {call.transcript || (
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Listening...
+                  </span>
+                )}
+              </p>
+            </div>
+            {call.listen_url && (
+              <LiveAudioPlayer callId={call.id} isActive />
+            )}
           </div>
         )}
 
         {call.status === "ringing" && (
-          <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-            <Phone className="h-4 w-4 animate-pulse" />
-            <span>Calling {restaurant.name}...</span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+              <Phone className="h-4 w-4 animate-pulse" />
+              <span>Calling {restaurant.name}...</span>
+            </div>
+            {call.listen_url && (
+              <LiveAudioPlayer callId={call.id} isActive />
+            )}
           </div>
         )}
 
@@ -118,7 +135,14 @@ export function LiveCallCard({
           </div>
         )}
 
-        {isDone && call.status === "ended" && (
+        {isDone && call.status === "ended" && !call.recommendation && (
+          <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+            <span>Analyzing transcript...</span>
+          </div>
+        )}
+
+        {isDone && call.status === "ended" && call.recommendation && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               {call.wait_time && (
@@ -156,18 +180,36 @@ export function LiveCallCard({
                   </span>
                 )}
               </div>
-              {call.recommendation !== "skip" && onBook && (
-                <Button
-                  size="sm"
-                  onClick={() => onBook(call.id)}
-                  disabled={bookingLoading}
-                >
-                  {bookingLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    "Book"
+              {call.recommendation !== "skip" && (
+                <div className="flex items-center gap-1.5">
+                  {openTableUrl && (
+                    <a
+                      href={openTableUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
+                    >
+                      OpenTable
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                   )}
-                </Button>
+                  {onBook && (
+                    <Button
+                      size="sm"
+                      onClick={() => onBook(call.id)}
+                      disabled={bookingLoading}
+                    >
+                      {bookingLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <>
+                          <Phone className="mr-1 h-3 w-3" />
+                          Call to book
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>

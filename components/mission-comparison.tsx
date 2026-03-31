@@ -8,11 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Trophy, AlertTriangle, XCircle, Clock } from "lucide-react";
-import type { ScoutCall, Restaurant } from "@/lib/types";
+import { Trophy, AlertTriangle, XCircle, Clock, ExternalLink } from "lucide-react";
+import type { ScoutCall, Restaurant, Mission } from "@/lib/types";
+import { buildOpenTableSearchUrl } from "@/lib/opentable";
 
 interface MissionComparisonProps {
   calls: (ScoutCall & { restaurant: Restaurant })[];
+  mission?: Mission;
   onBook?: (callId: string) => void;
 }
 
@@ -42,7 +44,7 @@ function verdictLabel(rec: string | null): string {
   }
 }
 
-export function MissionComparison({ calls, onBook }: MissionComparisonProps) {
+export function MissionComparison({ calls, mission, onBook }: MissionComparisonProps) {
   const completedCalls = calls.filter((c) =>
     ["ended", "no_answer", "voicemail", "failed"].includes(c.status)
   );
@@ -115,15 +117,29 @@ export function MissionComparison({ calls, onBook }: MissionComparisonProps) {
                     <td className="py-4">
                       {done &&
                         call.status === "ended" &&
-                        call.recommendation !== "skip" &&
-                        onBook && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onBook(call.id)}
-                          >
-                            Book
-                          </Button>
+                        call.recommendation !== "skip" && (
+                          <div className="flex items-center gap-1.5">
+                            {mission && (
+                              <a
+                                href={buildOpenTableSearchUrl(call.restaurant, mission)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                              >
+                                OpenTable
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                            {onBook && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onBook(call.id)}
+                              >
+                                Call
+                              </Button>
+                            )}
+                          </div>
                         )}
                     </td>
                   </tr>

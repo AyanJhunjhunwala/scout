@@ -53,6 +53,7 @@ export interface ScoutCall {
   duration_seconds: number | null;
   started_at: string | null;
   completed_at: string | null;
+  listen_url: string | null;
   restaurant?: Restaurant;
 }
 

@@ -90,12 +90,15 @@ export async function POST(
               callRow.id
             );
 
+            const listenUrl = vapiResponse.monitor?.listenUrl || null;
+
             await supabase
               .from("scout_calls")
               .update({
                 vapi_call_id: vapiResponse.id,
                 status: "ringing",
                 started_at: new Date().toISOString(),
+                listen_url: listenUrl,
               })
               .eq("id", callRow.id);
           } catch (err) {

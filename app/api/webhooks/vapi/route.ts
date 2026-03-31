@@ -103,7 +103,9 @@ async function handleEvent(
       }
 
       case "end-of-call-report":
-      case "call.ended": {
+      case "call.completed":
+      case "call.ended":
+      case "hangup": {
         const artifact = (message.artifact || {}) as Record<string, unknown>;
         const transcript =
           (artifact.transcript as string) ||

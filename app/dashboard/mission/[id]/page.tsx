@@ -16,6 +16,8 @@ export default function MissionPage() {
   const [bookingId, setBookingId] = useState<string | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
+  const syncRef = useRef<NodeJS.Timeout | null>(null);
+
   const loadMission = useCallback(async () => {
     try {
       const res = await fetch(`/api/missions/${id}`);
@@ -23,13 +25,26 @@ export default function MissionPage() {
         const data = await res.json();
         setMission(data);
 
-        const allDone = data.scout_calls?.every(
+        const activeCalls = data.scout_calls?.filter(
           (c: ScoutCall) =>
-            ["ended", "no_answer", "voicemail", "failed"].includes(c.status)
+            ["queued", "ringing", "connected"].includes(c.status)
         );
-        if (allDone && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
+        const callsNeedingExtraction = data.scout_calls?.filter(
+          (c: ScoutCall) => c.status === "ended" && !c.recommendation
+        );
+
+        const fullyDone =
+          (!activeCalls || activeCalls.length === 0) &&
+          (!callsNeedingExtraction || callsNeedingExtraction.length === 0);
+
+        if (fullyDone) {
+          if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+          if (syncRef.current) { clearInterval(syncRef.current); syncRef.current = null; }
+        }
+
+        // If calls ended but have no verdict, trigger sync immediately
+        if (callsNeedingExtraction && callsNeedingExtraction.length > 0) {
+          fetch(`/api/missions/${id}/sync`, { method: "POST" }).catch(() => {});
         }
       }
     } catch (err) {
@@ -38,13 +53,20 @@ export default function MissionPage() {
     setLoading(false);
   }, [id]);
 
+  const syncCalls = useCallback(async () => {
+    try {
+      await fetch(`/api/missions/${id}/sync`, { method: "POST" });
+      loadMission();
+    } catch {}
+  }, [id, loadMission]);
+
   useEffect(() => {
     loadMission();
 
-    // Polling fallback — every 3 seconds while calls are active
     pollRef.current = setInterval(loadMission, 3000);
+    // Sync with Vapi every 10s to catch calls that ended without webhook
+    syncRef.current = setInterval(syncCalls, 10000);
 
-    // Also try Supabase Realtime
     const supabase = createSupabaseBrowser();
     const channel = supabase
       .channel(`mission-${id}`)
@@ -72,9 +94,10 @@ export default function MissionPage() {
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (syncRef.current) clearInterval(syncRef.current);
       supabase.removeChannel(channel);
     };
-  }, [id, loadMission]);
+  }, [id, loadMission, syncCalls]);
 
   const handleBook = async (callId: string) => {
     setBookingId(callId);
@@ -157,6 +180,7 @@ export default function MissionPage() {
             key={call.id}
             call={call as ScoutCall}
             restaurant={call.restaurant as Restaurant}
+            mission={mission}
             onBook={handleBook}
             bookingLoading={bookingId === call.id}
           />
@@ -168,6 +192,7 @@ export default function MissionPage() {
           calls={
             mission.scout_calls as (ScoutCall & { restaurant: Restaurant })[]
           }
+          mission={mission}
           onBook={handleBook}
         />
       )}

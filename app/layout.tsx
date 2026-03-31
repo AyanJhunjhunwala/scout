@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Scout — Real-time restaurant intel",
+  title: "Scout — Vibe check any SF restaurant",
   description:
     "Scout calls restaurants right now so you don't walk into a bad night.",
 };
