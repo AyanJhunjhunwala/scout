@@ -12,10 +12,11 @@ import type { CreateMissionInput } from "@/lib/types";
 interface ScoutInputProps {
   onSubmit: (input: CreateMissionInput) => Promise<void>;
   loading?: boolean;
+  initialQuery?: string;
 }
 
-export function ScoutInput({ onSubmit, loading }: ScoutInputProps) {
-  const [neighborhood, setNeighborhood] = useState("");
+export function ScoutInput({ onSubmit, loading, initialQuery }: ScoutInputProps) {
+  const [neighborhood, setNeighborhood] = useState(initialQuery || "");
   const [partySize, setPartySize] = useState("2");
   const [desiredTime, setDesiredTime] = useState("tonight around 8pm");
   const [vibe, setVibe] = useState("");
@@ -35,28 +36,33 @@ export function ScoutInput({ onSubmit, loading }: ScoutInputProps) {
   };
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-xl">
           <Search className="h-5 w-5" />
           Where are we going tonight?
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="neighborhood">Neighborhood</Label>
+              <Label htmlFor="neighborhood" className="text-sm font-medium">
+                Neighborhood
+              </Label>
               <Input
                 id="neighborhood"
                 placeholder="Hayes Valley, Mission, North Beach..."
                 value={neighborhood}
                 onChange={(e) => setNeighborhood(e.target.value)}
+                className="h-11 text-base"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="party-size">Party Size</Label>
+              <Label htmlFor="party-size" className="text-sm font-medium">
+                Party Size
+              </Label>
               <Input
                 id="party-size"
                 type="number"
@@ -64,52 +70,67 @@ export function ScoutInput({ onSubmit, loading }: ScoutInputProps) {
                 max={20}
                 value={partySize}
                 onChange={(e) => setPartySize(e.target.value)}
+                className="h-11 text-base"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="time">When</Label>
+            <Label htmlFor="time" className="text-sm font-medium">
+              When
+            </Label>
             <Input
               id="time"
               placeholder="tonight around 8pm, tomorrow at 7..."
               value={desiredTime}
               onChange={(e) => setDesiredTime(e.target.value)}
+              className="h-11 text-base"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="vibe">Vibe (optional)</Label>
+            <Label htmlFor="vibe" className="text-sm font-medium">
+              Vibe (optional)
+            </Label>
             <Input
               id="vibe"
               placeholder="chill, lively, romantic, casual..."
               value={vibe}
               onChange={(e) => setVibe(e.target.value)}
+              className="h-11 text-base"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dietary">Dietary Needs (optional)</Label>
+            <Label htmlFor="dietary" className="text-sm font-medium">
+              Dietary Needs (optional)
+            </Label>
             <Textarea
               id="dietary"
               placeholder="vegetarian, gluten-free, nut allergy..."
               value={dietaryNeeds}
               onChange={(e) => setDietaryNeeds(e.target.value)}
               rows={2}
+              className="text-base"
             />
           </div>
 
-          <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full text-base py-6"
+            size="lg"
+            disabled={loading}
+          >
             {loading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Searching restaurants...
               </>
             ) : (
               <>
-                <Search className="mr-2 h-4 w-4" />
+                <Search className="mr-2 h-5 w-5" />
                 Find Restaurants
               </>
             )}

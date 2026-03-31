@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,12 +14,26 @@ export default function MissionPage() {
   const [mission, setMission] = useState<MissionWithCalls | null>(null);
   const [loading, setLoading] = useState(true);
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadMission = useCallback(async () => {
-    const res = await fetch(`/api/missions/${id}`);
-    if (res.ok) {
-      const data = await res.json();
-      setMission(data);
+    try {
+      const res = await fetch(`/api/missions/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMission(data);
+
+        const allDone = data.scout_calls?.every(
+          (c: ScoutCall) =>
+            ["ended", "no_answer", "voicemail", "failed"].includes(c.status)
+        );
+        if (allDone && pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load mission:", err);
     }
     setLoading(false);
   }, [id]);
@@ -27,8 +41,11 @@ export default function MissionPage() {
   useEffect(() => {
     loadMission();
 
-    const supabase = createSupabaseBrowser();
+    // Polling fallback — every 3 seconds while calls are active
+    pollRef.current = setInterval(loadMission, 3000);
 
+    // Also try Supabase Realtime
+    const supabase = createSupabaseBrowser();
     const channel = supabase
       .channel(`mission-${id}`)
       .on(
@@ -39,9 +56,7 @@ export default function MissionPage() {
           table: "scout_calls",
           filter: `mission_id=eq.${id}`,
         },
-        () => {
-          loadMission();
-        }
+        () => loadMission()
       )
       .on(
         "postgres_changes",
@@ -51,13 +66,12 @@ export default function MissionPage() {
           table: "missions",
           filter: `id=eq.${id}`,
         },
-        () => {
-          loadMission();
-        }
+        () => loadMission()
       )
       .subscribe();
 
     return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
       supabase.removeChannel(channel);
     };
   }, [id, loadMission]);
@@ -67,7 +81,9 @@ export default function MissionPage() {
     try {
       const res = await fetch(`/api/calls/${callId}/book`, { method: "POST" });
       if (!res.ok) throw new Error("Booking failed");
-      alert("Booking call initiated! Scout is calling to make your reservation.");
+      alert(
+        "Booking call initiated! Scout is calling to make your reservation."
+      );
     } catch {
       alert("Failed to start booking call. Please try again.");
     } finally {
@@ -77,21 +93,21 @@ export default function MissionPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-72" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-48" />
+            <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-64" />
+        <Skeleton className="h-64 rounded-xl" />
       </div>
     );
   }
 
   if (!mission) {
     return (
-      <div className="py-12 text-center text-muted-foreground">
+      <div className="py-16 text-center text-lg text-muted-foreground">
         Mission not found
       </div>
     );
@@ -109,12 +125,13 @@ export default function MissionPage() {
       .every((c) => c.recommendation === "skip");
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{mission.neighborhood}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {mission.neighborhood}
+          </h1>
+          <p className="mt-2 text-base text-muted-foreground">
             {mission.raw_query}
           </p>
         </div>
@@ -122,10 +139,10 @@ export default function MissionPage() {
           variant="secondary"
           className={
             mission.status === "complete"
-              ? "bg-green-100 text-green-800"
+              ? "bg-green-100 text-green-800 text-sm px-3 py-1"
               : mission.status === "calling"
-                ? "bg-yellow-100 text-yellow-800"
-                : ""
+                ? "bg-yellow-100 text-yellow-800 text-sm px-3 py-1"
+                : "text-sm px-3 py-1"
           }
         >
           {mission.status === "calling"
@@ -134,8 +151,7 @@ export default function MissionPage() {
         </Badge>
       </div>
 
-      {/* Live call cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {mission.scout_calls.map((call) => (
           <LiveCallCard
             key={call.id}
@@ -147,18 +163,18 @@ export default function MissionPage() {
         ))}
       </div>
 
-      {/* Comparison table */}
       {completedCount > 0 && (
         <MissionComparison
-          calls={mission.scout_calls as (ScoutCall & { restaurant: Restaurant })[]}
+          calls={
+            mission.scout_calls as (ScoutCall & { restaurant: Restaurant })[]
+          }
           onBook={handleBook}
         />
       )}
 
-      {/* Edge case: all results are skip */}
       {allSkip && (
-        <div className="rounded-lg border border-dashed p-6 text-center">
-          <p className="text-muted-foreground">
+        <div className="rounded-xl border border-dashed p-8 text-center">
+          <p className="text-lg text-muted-foreground">
             All results came back as &quot;skip&quot; — try expanding your
             search to a wider area or different time.
           </p>

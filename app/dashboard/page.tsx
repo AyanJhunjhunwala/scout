@@ -44,18 +44,20 @@ export default function DashboardPage() {
 
     load();
 
+    // Poll as fallback
+    const interval = setInterval(load, 5000);
+
     const channel = supabase
       .channel("missions-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "missions" },
-        () => {
-          load();
-        }
+        () => load()
       )
       .subscribe();
 
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -64,15 +66,12 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Missions</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight">Missions</h1>
+          <p className="mt-1 text-base text-muted-foreground">
             Your past and active scouting missions
           </p>
         </div>
-        <Link
-          href="/dashboard/scout"
-          className={cn(buttonVariants())}
-        >
+        <Link href="/dashboard/scout" className={cn(buttonVariants())}>
           <Plus className="mr-2 h-4 w-4" />
           New Scout
         </Link>
@@ -81,16 +80,16 @@ export default function DashboardPage() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-24 w-full" />
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
           ))}
         </div>
       ) : missions.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-12">
-            <p className="text-muted-foreground">No missions yet</p>
+          <CardContent className="flex flex-col items-center gap-4 py-16">
+            <p className="text-lg text-muted-foreground">No missions yet</p>
             <Link
               href="/dashboard/scout"
-              className={cn(buttonVariants())}
+              className={cn(buttonVariants({ size: "lg" }))}
             >
               Start your first scout
             </Link>
@@ -104,15 +103,15 @@ export default function DashboardPage() {
               href={`/dashboard/mission/${mission.id}`}
               className="block"
             >
-              <Card className="transition-colors hover:bg-accent/50">
+              <Card className="transition-all hover:bg-accent/50 hover:shadow-md">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-base font-medium">
+                  <CardTitle className="text-lg font-semibold">
                     {mission.neighborhood} — {mission.party_size} people
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <Badge
                       variant="secondary"
-                      className={statusColors[mission.status] || ""}
+                      className={cn("text-sm", statusColors[mission.status] || "")}
                     >
                       {mission.status}
                     </Badge>
@@ -120,10 +119,10 @@ export default function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     {mission.raw_query}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {formatDistanceToNow(new Date(mission.created_at), {
                       addSuffix: true,
                     })}

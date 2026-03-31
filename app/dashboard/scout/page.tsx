@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ScoutInput } from "@/components/scout-input";
 import { RestaurantPicker } from "@/components/restaurant-picker";
 import type { CreateMissionInput, Restaurant, Mission } from "@/lib/types";
@@ -10,6 +10,9 @@ type Step = "input" | "pick" | "launching";
 
 export default function ScoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || "";
+
   const [step, setStep] = useState<Step>("input");
   const [loading, setLoading] = useState(false);
   const [mission, setMission] = useState<Mission | null>(null);
@@ -32,7 +35,9 @@ export default function ScoutPage() {
       setStep("pick");
     } catch (err) {
       console.error(err);
-      alert("Something went wrong searching for restaurants. Please try again.");
+      alert(
+        "Something went wrong searching for restaurants. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -64,8 +69,8 @@ export default function ScoutPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Scout</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-3xl font-bold tracking-tight">Scout</h1>
+        <p className="mt-1 text-base text-muted-foreground">
           {step === "input" && "Tell us what you're looking for tonight"}
           {step === "pick" && "Pick the restaurants you want scouted"}
           {step === "launching" && "Launching calls..."}
@@ -73,7 +78,11 @@ export default function ScoutPage() {
       </div>
 
       {step === "input" && (
-        <ScoutInput onSubmit={handleSearch} loading={loading} />
+        <ScoutInput
+          onSubmit={handleSearch}
+          loading={loading}
+          initialQuery={initialQuery}
+        />
       )}
 
       {(step === "pick" || step === "launching") && restaurants.length > 0 && (
