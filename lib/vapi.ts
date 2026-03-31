@@ -1,5 +1,12 @@
 import type { Mission, Restaurant } from "./types";
 
+const TEST_MODE = process.env.SCOUT_TEST_MODE === "true";
+const TEST_PHONE = process.env.SCOUT_TEST_PHONE_NUMBER || "";
+
+function getCallNumber(restaurant: Restaurant): string {
+  return TEST_MODE && TEST_PHONE ? TEST_PHONE : restaurant.phone;
+}
+
 function buildSystemPrompt(mission: Mission): string {
   const dietarySection =
     mission.dietary_needs && mission.dietary_needs.length > 0
@@ -51,7 +58,7 @@ export async function startScoutCall(
     },
     body: JSON.stringify({
       phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-      customer: { number: restaurant.phone },
+      customer: { number: getCallNumber(restaurant) },
       assistant: {
         firstMessage: `Hi! I'm calling for a friend who's thinking of coming in tonight with ${mission.party_size} people around ${mission.desired_time}. Do you have any availability?`,
         model: {
@@ -100,7 +107,7 @@ export async function startBookingCall(
     },
     body: JSON.stringify({
       phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-      customer: { number: restaurant.phone },
+      customer: { number: getCallNumber(restaurant) },
       assistant: {
         firstMessage: `Hi! I'd like to make a reservation for ${mission.party_size} people tonight around ${mission.desired_time}, please.`,
         model: {
