@@ -5,7 +5,7 @@ const BASE_URL = "https://maps.googleapis.com/maps/api/place";
 export async function searchRestaurants(
   neighborhood: string
 ): Promise<PlaceResult[]> {
-  const query = encodeURIComponent(`restaurants in ${neighborhood}`);
+  const query = encodeURIComponent(`restaurants in ${neighborhood}, San Francisco Bay Area, CA`);
   const url = `${BASE_URL}/textsearch/json?query=${query}&type=restaurant&key=${process.env.GOOGLE_PLACES_API_KEY}`;
 
   const res = await fetch(url);

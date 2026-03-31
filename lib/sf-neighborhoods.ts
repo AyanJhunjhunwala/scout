@@ -1,0 +1,158 @@
+export const SF_NEIGHBORHOODS = [
+  "Mission",
+  "Mission District",
+  "Hayes Valley",
+  "North Beach",
+  "Castro",
+  "The Castro",
+  "Marina",
+  "Marina District",
+  "SoMa",
+  "South of Market",
+  "Tenderloin",
+  "Japantown",
+  "Nob Hill",
+  "Russian Hill",
+  "Pacific Heights",
+  "Pac Heights",
+  "Sunset",
+  "Inner Sunset",
+  "Outer Sunset",
+  "Richmond",
+  "Inner Richmond",
+  "Outer Richmond",
+  "Potrero Hill",
+  "Dogpatch",
+  "Bernal Heights",
+  "Glen Park",
+  "Cole Valley",
+  "Haight",
+  "Haight-Ashbury",
+  "Lower Haight",
+  "Upper Haight",
+  "Noe Valley",
+  "Twin Peaks",
+  "Excelsior",
+  "Bayview",
+  "Visitacion Valley",
+  "Presidio",
+  "Sea Cliff",
+  "Financial District",
+  "FiDi",
+  "Union Square",
+  "Chinatown",
+  "Telegraph Hill",
+  "Fillmore",
+  "Western Addition",
+  "Embarcadero",
+  "Fisherman's Wharf",
+  "NOPA",
+  "Alamo Square",
+  "Duboce Triangle",
+  "Cow Hollow",
+  "Laurel Heights",
+  "Presidio Heights",
+  "Portola",
+  "Crocker-Amazon",
+  "Balboa Park",
+  "Ingleside",
+  "Miraloma Park",
+  "Diamond Heights",
+  "West Portal",
+  "Forest Hill",
+  "Parkside",
+  "Stonestown",
+] as const;
+
+export const BAY_AREA_CITIES = [
+  "San Francisco",
+  "SF",
+  "Oakland",
+  "Berkeley",
+  "Palo Alto",
+  "Mountain View",
+  "San Jose",
+  "Redwood City",
+  "San Mateo",
+  "Daly City",
+  "South San Francisco",
+  "Walnut Creek",
+  "Concord",
+  "Fremont",
+  "Alameda",
+  "Sausalito",
+  "Mill Valley",
+  "Tiburon",
+  "San Rafael",
+  "Emeryville",
+  "Piedmont",
+  "Menlo Park",
+  "Los Altos",
+  "Cupertino",
+  "Sunnyvale",
+  "Santa Clara",
+  "Campbell",
+  "Los Gatos",
+  "Burlingame",
+  "San Carlos",
+  "Belmont",
+  "Foster City",
+  "Half Moon Bay",
+  "Pacifica",
+  "Pleasant Hill",
+  "Lafayette",
+  "Orinda",
+  "Moraga",
+  "Danville",
+  "Dublin",
+  "Pleasanton",
+  "Livermore",
+  "Hayward",
+  "Union City",
+  "Newark",
+  "Milpitas",
+  "Napa",
+  "Sonoma",
+  "Petaluma",
+  "Novato",
+  "San Leandro",
+  "Castro Valley",
+  "San Ramon",
+] as const;
+
+const ALL_VALID = [
+  ...SF_NEIGHBORHOODS,
+  ...BAY_AREA_CITIES,
+].map((n) => n.toLowerCase());
+
+export function isInBayArea(query: string): boolean {
+  const lower = query.toLowerCase().trim();
+  return ALL_VALID.some(
+    (area) => lower.includes(area.toLowerCase()) || area.toLowerCase().includes(lower)
+  );
+}
+
+const REJECTIONS = [
+  "Scout only operates in the SF Bay Area. We tried expanding once... it didn't go well. The burritos weren't the same.",
+  "Whoa there, that's outside the Bay. We don't scout where the sourdough isn't fresh.",
+  "Sorry, Scout is Bay Area only. We need to be within range of a good fog horn to function properly.",
+  "That's outside our territory. Scout runs on BART energy and Mission burritos. We can't operate without them.",
+  "We love the ambition, but Scout hasn't left the Bay Area since 2024. Something about the weather everywhere else.",
+  "Nice try! But if Karl the Fog can't reach it, neither can we.",
+  "We'd love to help, but our AI starts hallucinating about In-N-Out vs Shake Shack outside the Bay. It's not pretty.",
+  "Scout is proudly Bay Area exclusive. We barely survived expanding to the East Bay. Give us time.",
+  "Our voice agent gets a weird accent outside the 415/510/650 area codes. Trust us, it's better this way.",
+  "That location is outside the Bay Area. Our AI tried calling a restaurant in LA once and got put on hold for 45 minutes. Never again.",
+];
+
+export function getRandomRejection(): string {
+  return REJECTIONS[Math.floor(Math.random() * REJECTIONS.length)];
+}
+
+export function getNeighborhoodSuggestions(query: string): string[] {
+  if (!query.trim()) return SF_NEIGHBORHOODS.slice(0, 8) as unknown as string[];
+  const lower = query.toLowerCase();
+  return ([...SF_NEIGHBORHOODS, ...BAY_AREA_CITIES] as unknown as string[]).filter((n) =>
+    n.toLowerCase().includes(lower)
+  ).slice(0, 6);
+}

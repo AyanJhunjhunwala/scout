@@ -23,6 +23,7 @@ export function Navbar() {
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <span className="text-xl">Scout</span>
+          <span className="text-xs font-normal text-orange-500 align-super">SF</span>
         </Link>
 
         <div className="hidden items-center gap-1 md:flex">

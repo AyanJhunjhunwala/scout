@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { searchRestaurants } from "@/lib/google-places";
 import { formatPhoneForVapi } from "@/lib/google-places";
+import { isInBayArea, getRandomRejection } from "@/lib/sf-neighborhoods";
 import type { CreateMissionInput, PlaceResult } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -12,6 +13,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "neighborhood, party_size, and desired_time are required" },
       { status: 400 }
+    );
+  }
+
+  if (!isInBayArea(neighborhood)) {
+    return NextResponse.json(
+      { error: getRandomRejection() },
+      { status: 422 }
     );
   }
 
