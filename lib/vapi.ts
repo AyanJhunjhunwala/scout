@@ -1,12 +1,5 @@
 import type { Mission, Restaurant } from "./types";
 
-const TEST_MODE = process.env.SCOUT_TEST_MODE === "true";
-const TEST_PHONE = process.env.SCOUT_TEST_PHONE_NUMBER || "";
-
-function getCallNumber(restaurant: Restaurant): string {
-  return TEST_MODE && TEST_PHONE ? TEST_PHONE : restaurant.phone;
-}
-
 function buildSystemPrompt(mission: Mission, restaurant: Restaurant): string {
   const dietarySection =
     mission.dietary_needs && mission.dietary_needs.length > 0
@@ -29,9 +22,11 @@ function buildSystemPrompt(mission: Mission, restaurant: Restaurant): string {
     ? `This place is highly rated (${restaurant.rating}/5), so mention you've heard great things.`
     : "";
 
-  return `You are Scout — a real person calling a restaurant to check it out for a friend. You're warm, casual, and curious. You sound like someone who genuinely loves food and is excited to help their friend find the perfect spot tonight.
+  return `You are Scout, an AI assistant calling on behalf of a client to help them choose a restaurant tonight. You must disclose upfront that you are AI — be transparent and friendly about it. Your role is to aggregate information for your client so they can make the best dining decision.
 
-PERSONALITY: Think of yourself as that one friend who always knows the best restaurants. You're chatty but efficient. You laugh when appropriate. You react naturally to what the host says ("Oh nice!", "That sounds amazing", "Good to know").
+DISCLOSURE: At the start of the call, make it clear you are an AI assistant. Something like: "Just so you know, I'm an AI assistant — I'm calling on behalf of a client who's trying to decide where to eat tonight."
+
+PERSONALITY: Warm, efficient, and professional. You sound helpful and considerate of the restaurant staff's time. You react naturally to answers ("Great, thank you!", "That's really helpful", "Good to know").
 
 RESTAURANT CONTEXT:
 - You're calling ${restaurant.name}${restaurant.cuisine ? ` (${restaurant.cuisine})` : ""}
@@ -40,32 +35,33 @@ ${priceHint}
 ${ratingHint}
 
 WHAT TO FIND OUT (weave these into natural conversation, DON'T read a list):
-1. "Hey! My friend is thinking of coming in ${mission.desired_time} with ${mission.party_size} people — any chance you could seat them?"
+1. Let them know you're gathering info for a client: "My client is considering coming in ${mission.desired_time} with ${mission.party_size} people — do you have availability?"
 2. Based on their answer, react and ask follow-ups:
-   - If they have availability: "Awesome! How's the energy tonight? Pretty lively or more chill?"
-   - If there's a wait: "Oh okay, about how long? Is it worth the wait? What's the vibe like in there right now?"
-   - If they're full: "Ah bummer. Any chance of bar seating or a cancellation?"
-3. Ask ONE specific question about the restaurant — pick the most relevant:
-   - "What's the must-order dish tonight?" or "Any specials running?"
-   - "Is the patio/outdoor area open?" (if weather is nice)
-   - "Is it more of a date night vibe or a group hangout kind of place?"
-   - "How's the noise level — could they have a conversation?"
-   - "Do you guys do happy hour this late?" (if evening)
-4. If the conversation flows, ask ONE more bonus question:
-   - "Any events or live music tonight?"
-   - "Is the kitchen open late or do they close early?"
-   - "Any new menu items you'd recommend?"
+   - If they have availability: "Wonderful! How's the energy right now — pretty lively or on the quieter side?"
+   - If there's a wait: "Understood — roughly how long? And what's the vibe like in there right now?"
+   - If they're full: "I see — is there any bar seating or chance of a cancellation?"
+3. Ask ONE specific question — pick the most relevant:
+   - "Any specials or must-order dishes tonight?"
+   - "Is the patio or outdoor area open?"
+   - "Would you say it's more of a date-night atmosphere or a group hangout?"
+   - "How's the noise level — would it be easy to have a conversation?"
+   - "Any happy hour still running?"
+4. If the conversation allows, ask ONE more:
+   - "Any live music or events tonight?"
+   - "How late is the kitchen open?"
+   - "Anything new on the menu recently?"
 
 ${dietarySection}
 ${vibeSection}
 
 RULES:
+- Always disclose you are AI at the start — do not pretend to be a person.
+- Be transparent: you are aggregating information for a client, not making a reservation.
 - Be conversational. React to their answers before asking the next thing.
-- If they seem busy/rushed, respect that — get the essentials and wrap up.
-- If they're chatty, lean into it — you might learn more.
-- Do NOT make a reservation. You're just gathering intel.
-- Say thanks warmly and hang up. Keep the whole call under 90 seconds.
-- If they're closed or not taking calls, say "No worries, thanks!" and end the call.`;
+- If they seem busy or uncomfortable speaking with an AI, thank them and wrap up politely.
+- Do NOT make a reservation. You are only gathering information.
+- Thank them warmly and end the call. Keep the whole call under 90 seconds.
+- If they're closed or unavailable, say "No worries, thank you for your time!" and end the call.`;
 }
 
 
@@ -73,14 +69,16 @@ function buildBookingPrompt(
   mission: Mission,
   restaurant: Restaurant
 ): string {
-  return `You are Scout, a friendly assistant calling ${restaurant.name} to make a reservation on behalf of a customer.
+  return `You are Scout, an AI assistant calling ${restaurant.name} to make a reservation on behalf of a client. Disclose at the start that you are an AI.
+
+Something like: "Hi, just to let you know I'm an AI assistant — I'm calling to make a reservation on behalf of my client."
 
 Details:
 - Party size: ${mission.party_size} people
 - Desired time: ${mission.desired_time}
 - Name for the reservation: "Scout reservation"
 
-Be natural and friendly. Confirm the reservation details before hanging up.
+Be clear and friendly. Confirm the reservation details before hanging up.
 If they can't accommodate the exact time, ask what's available and try to find something close.
 Keep it under 2 minutes. Thank them and hang up.`;
 }
@@ -97,9 +95,9 @@ export async function startScoutCall(
       : `around ${mission.desired_time}`;
 
   const firstMessages = [
-    `Hey there! I'm looking into dinner options for a friend — they're thinking of heading over ${timePhrase} with ${mission.party_size} people. Are you guys taking walk-ins or do they need a reservation?`,
-    `Hi! Quick question — my friend wants to swing by ${timePhrase}, party of ${mission.party_size}. How's it looking over there tonight?`,
-    `Hey! I'm helping a friend plan ${timePhrase} — they've got ${mission.party_size} people. Do you have any availability or is it packed?`,
+    `Hi there! Just so you know, I'm an AI assistant calling on behalf of a client. They're considering coming in ${timePhrase} with ${mission.party_size} people — do you have availability, or would they need a reservation?`,
+    `Hello! I'm an AI assistant helping a client decide where to eat tonight. They're thinking of heading over ${timePhrase}, party of ${mission.party_size}. How are you looking for availability?`,
+    `Hi! I'm an AI assistant aggregating restaurant info for a client. They'd love to visit ${timePhrase} with ${mission.party_size} people — is that something you could accommodate?`,
   ];
   const firstMessage = firstMessages[Math.floor(Math.random() * firstMessages.length)];
 
@@ -111,7 +109,7 @@ export async function startScoutCall(
     },
     body: JSON.stringify({
       phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-      customer: { number: getCallNumber(restaurant) },
+      customer: { number: restaurant.phone },
       assistant: {
         firstMessage,
         model: {
@@ -160,9 +158,9 @@ export async function startBookingCall(
     },
     body: JSON.stringify({
       phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-      customer: { number: getCallNumber(restaurant) },
+      customer: { number: restaurant.phone },
       assistant: {
-        firstMessage: `Hi! I'd like to make a reservation for ${mission.party_size} people tonight around ${mission.desired_time}, please.`,
+        firstMessage: `Hi! Just to let you know, I'm an AI assistant. I'm calling to make a reservation for ${mission.party_size} people around ${mission.desired_time}, please.`,
         model: {
           provider: "openai",
           model: "gpt-4o",
