@@ -170,5 +170,7 @@ function extractedFields(data: Awaited<ReturnType<typeof tryExtract>>) {
     special_notes: data.special_notes || null,
     recommendation: data.recommendation || null,
     recommendation_reason: data.recommendation_reason || null,
+    call_summary: data.call_summary || null,
+    highlights: data.highlights || null,
   };
 }

@@ -37,10 +37,13 @@ Return JSON with exactly these fields:
   "dietary_safe": true | false | null,
   "recommendation": "best_bet" | "worth_it" | "skip",
   "recommendation_reason": "one sentence explaining why",
-  "special_notes": "anything else notable" | null
+  "special_notes": "anything else notable" | null,
+  "call_summary": "2-3 sentence natural summary of the call — what was said, key info learned, and overall impression",
+  "highlights": ["short phrase the caller mentioned", "another notable detail"] // 2-5 short highlights from the call
 }
 
 IMPORTANT: You MUST always return a recommendation. If unsure, use "worth_it" as default.
+IMPORTANT: Always include call_summary and at least 2 highlights. Highlights should be specific things mentioned in the call (e.g. "happy hour until 7", "patio is dog-friendly", "jazz band playing tonight").
 
 Mission context: ${mission.party_size} people, ${mission.desired_time}, wants ${mission.vibe || "any"} vibe, dietary: ${mission.dietary_needs?.join(", ") || "none"}
 
@@ -86,16 +89,25 @@ function extractFallback(transcript: string): CallExtraction {
 
   const hasUsefulInfo = wait_time || vibe || availability;
 
+  const highlights: string[] = [];
+  if (wait_time) highlights.push(`Wait: ${wait_time}`);
+  if (vibe) highlights.push(`Vibe: ${vibe}`);
+  if (availability) highlights.push(availability);
+
   return {
     wait_time,
     vibe,
     menu_notes: null,
     availability,
     dietary_safe: null,
-    recommendation: hasUsefulInfo ? "worth_it" : "worth_it",
+    recommendation: "worth_it",
     recommendation_reason: hasUsefulInfo
       ? "Call completed — basic info extracted."
       : "Call completed but limited info gathered.",
     special_notes: null,
+    call_summary: hasUsefulInfo
+      ? `The restaurant was reached. ${[wait_time && `Wait time is ${wait_time}.`, vibe && `The vibe is ${vibe}.`, availability && `Availability: ${availability}.`].filter(Boolean).join(" ")}`
+      : "The restaurant was reached but limited information could be gathered from the call.",
+    highlights: highlights.length > 0 ? highlights : ["Call completed"],
   };
 }

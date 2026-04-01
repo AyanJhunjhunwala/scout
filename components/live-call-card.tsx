@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, PhoneOff, Loader2, ExternalLink } from "lucide-react";
+import { Phone, PhoneOff, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LiveAudioPlayer } from "@/components/live-audio-player";
 import type { ScoutCall, CallStatus, Restaurant, Mission } from "@/lib/types";
@@ -61,7 +61,7 @@ export function LiveCallCard({
     : null;
 
   return (
-    <Card className={cn("overflow-hidden transition-all", !isDone && "animate-in fade-in-0")}>
+    <Card className={cn("overflow-hidden transition-all shadow-sm", !isDone && "animate-in fade-in-0")}>
       {restaurant.photo_ref && (
         <div className="relative h-32 w-full bg-muted">
           <img
@@ -144,6 +144,32 @@ export function LiveCallCard({
 
         {isDone && call.status === "ended" && call.recommendation && (
           <div className="space-y-3">
+            {/* Call summary */}
+            {call.call_summary && (
+              <div className="rounded-lg bg-muted/40 p-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Sparkles className="h-3 w-3 text-orange-500" />
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Summary</p>
+                </div>
+                <p className="text-sm leading-relaxed">{call.call_summary}</p>
+              </div>
+            )}
+
+            {/* Highlights */}
+            {call.highlights && call.highlights.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {call.highlights.map((h, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700"
+                  >
+                    {h}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Quick stats */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
               {call.wait_time && (
                 <div>
@@ -171,23 +197,23 @@ export function LiveCallCard({
               )}
             </div>
 
-            <div className="flex items-center justify-between border-t pt-3">
+            <div className="border-t pt-3 space-y-2.5">
               <div className="flex items-center gap-2">
                 <RecommendationBadge rec={call.recommendation} />
                 {call.recommendation_reason && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground line-clamp-2">
                     {call.recommendation_reason}
                   </span>
                 )}
               </div>
               {call.recommendation !== "skip" && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   {openTableUrl && (
                     <a
                       href={openTableUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
+                      className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
                     >
                       OpenTable
                       <ExternalLink className="h-3 w-3" />
@@ -204,7 +230,7 @@ export function LiveCallCard({
                       ) : (
                         <>
                           <Phone className="mr-1 h-3 w-3" />
-                          Call to book
+                          Book
                         </>
                       )}
                     </Button>

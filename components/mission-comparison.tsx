@@ -52,7 +52,7 @@ export function MissionComparison({ calls, mission, onBook }: MissionComparisonP
   const bestBet = completedCalls.find((c) => c.recommendation === "best_bet");
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { Suspense, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { RestaurantPicker } from "@/components/restaurant-picker";
@@ -44,6 +44,14 @@ const QUICK_PROMPTS = [
 ];
 
 export default function ScoutPage() {
+  return (
+    <Suspense>
+      <ScoutPageContent />
+    </Suspense>
+  );
+}
+
+function ScoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";

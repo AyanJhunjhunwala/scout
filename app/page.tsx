@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MapPin, Phone, Sparkles } from "lucide-react";
+import { ArrowRight, MapPin, Phone, Sparkles, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SF_NEIGHBORHOODS } from "@/lib/sf-neighborhoods";
 
@@ -255,6 +255,10 @@ export default function LandingPage() {
             <Link href="/dashboard" className={cn(buttonVariants({ variant: "ghost" }))}>
               Dashboard
             </Link>
+            <Link href="/dashboard/explore" className={cn(buttonVariants({ variant: "ghost" }), "gap-1.5")}>
+              <Map className="h-4 w-4" />
+              Explore
+            </Link>
             <Link href="/dashboard/scout" className={cn(buttonVariants())}>
               Start Scouting
             </Link>
@@ -351,6 +355,28 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
+
+            {/* Explore map CTA */}
+            <div
+              className={cn(
+                "mx-auto mt-8 transition-all duration-1000 delay-700",
+                pillsVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+              )}
+            >
+              <Link
+                href="/dashboard/explore"
+                className="group inline-flex items-center gap-2.5 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-3 text-sm font-medium text-orange-700 shadow-sm transition-all hover:shadow-md hover:border-orange-300 hover:from-orange-100 hover:to-amber-100"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-sm">
+                  <Map className="h-4 w-4 text-white" />
+                </div>
+                <div className="text-left">
+                  <span className="font-semibold">Explore the map</span>
+                  <span className="ml-1.5 text-orange-500/70">— browse &amp; scout nearby restaurants</span>
+                </div>
+                <ArrowRight className="h-4 w-4 text-orange-400 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -429,16 +455,28 @@ export default function LandingPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Stop refreshing Yelp reviews from 2019. Get real-time answers.
             </p>
-            <Link
-              href="/dashboard/scout"
-              className={cn(
-                buttonVariants(),
-                "mt-6 rounded-xl bg-orange-600 px-8 py-5 text-base hover:bg-orange-700"
-              )}
-            >
-              Start Scouting
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
+            <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Link
+                href="/dashboard/scout"
+                className={cn(
+                  buttonVariants(),
+                  "rounded-xl bg-orange-600 px-8 py-5 text-base hover:bg-orange-700"
+                )}
+              >
+                Start Scouting
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+              <Link
+                href="/dashboard/explore"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "rounded-xl px-6 py-5 text-base gap-2"
+                )}
+              >
+                <Map className="h-4 w-4" />
+                Explore the map
+              </Link>
+            </div>
           </div>
         </section>
       </main>

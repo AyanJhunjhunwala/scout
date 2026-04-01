@@ -164,6 +164,8 @@ async function handleEvent(
             special_notes: extractedData?.special_notes || null,
             recommendation: extractedData?.recommendation || null,
             recommendation_reason: extractedData?.recommendation_reason || null,
+            call_summary: extractedData?.call_summary || null,
+            highlights: extractedData?.highlights || null,
           })
           .eq("id", scoutCallId);
 

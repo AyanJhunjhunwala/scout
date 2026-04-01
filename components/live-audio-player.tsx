@@ -19,17 +19,32 @@ export function LiveAudioPlayer({ callId, isActive }: LiveAudioPlayerProps) {
   const bufferQueueRef = useRef<Float32Array[]>([]);
   const drainScheduledRef = useRef(false);
 
-  const SAMPLE_RATE = 16000;
+  const inboundRateRef = useRef(0);
+  const calibratingRef = useRef(true);
+  const calibrationSamplesRef = useRef(0);
+  const calibrationStartRef = useRef(0);
+
+  const KNOWN_RATES = [8000, 16000, 24000, 32000, 44100, 48000];
+  function snapToKnownRate(measured: number): number {
+    let best = 48000;
+    let bestDist = Infinity;
+    for (const r of KNOWN_RATES) {
+      const d = Math.abs(r - measured);
+      if (d < bestDist) { bestDist = d; best = r; }
+    }
+    return best;
+  }
 
   const drainQueue = useCallback(() => {
     drainScheduledRef.current = false;
     const ctx = audioCtxRef.current;
     const gain = gainRef.current;
-    if (!ctx || !gain || ctx.state === "closed") return;
+    const rate = inboundRateRef.current;
+    if (!ctx || !gain || ctx.state === "closed" || rate === 0) return;
 
     while (bufferQueueRef.current.length > 0) {
       const samples = bufferQueueRef.current.shift()!;
-      const buffer = ctx.createBuffer(1, samples.length, SAMPLE_RATE);
+      const buffer = ctx.createBuffer(1, samples.length, rate);
       buffer.getChannelData(0).set(samples);
 
       const source = ctx.createBufferSource();
@@ -68,13 +83,17 @@ export function LiveAudioPlayer({ callId, isActive }: LiveAudioPlayerProps) {
         return;
       }
 
-      const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
+      const ctx = new AudioContext();
       const gain = ctx.createGain();
       gain.gain.value = muted ? 0 : 1;
       gain.connect(ctx.destination);
       audioCtxRef.current = ctx;
       gainRef.current = gain;
       nextPlayTimeRef.current = 0;
+      calibratingRef.current = true;
+      calibrationSamplesRef.current = 0;
+      calibrationStartRef.current = 0;
+      inboundRateRef.current = 0;
 
       const ws = new WebSocket(listenUrl);
       ws.binaryType = "arraybuffer";
@@ -89,6 +108,25 @@ export function LiveAudioPlayer({ callId, isActive }: LiveAudioPlayerProps) {
         const float32 = new Float32Array(pcm16.length);
         for (let i = 0; i < pcm16.length; i++) {
           float32[i] = pcm16[i] / 32768;
+        }
+
+        if (calibratingRef.current) {
+          if (calibrationStartRef.current === 0) {
+            calibrationStartRef.current = performance.now();
+          }
+          calibrationSamplesRef.current += pcm16.length;
+          bufferQueueRef.current.push(float32);
+
+          const elapsed = performance.now() - calibrationStartRef.current;
+          // After 600ms of wall-clock data, derive sample rate
+          if (elapsed >= 600) {
+            const measuredRate = (calibrationSamplesRef.current / elapsed) * 1000;
+            inboundRateRef.current = snapToKnownRate(measuredRate);
+            calibratingRef.current = false;
+            console.log(`[LiveAudio] calibrated: ${Math.round(measuredRate)} Hz → snapped to ${inboundRateRef.current} Hz (${calibrationSamplesRef.current} samples in ${Math.round(elapsed)}ms)`);
+            scheduleDrain();
+          }
+          return;
         }
 
         bufferQueueRef.current.push(float32);

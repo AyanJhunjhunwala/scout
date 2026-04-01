@@ -50,6 +50,8 @@ export interface ScoutCall {
   special_notes: string | null;
   recommendation: Recommendation | null;
   recommendation_reason: string | null;
+  call_summary: string | null;
+  highlights: string[] | null;
   duration_seconds: number | null;
   started_at: string | null;
   completed_at: string | null;
@@ -99,6 +101,8 @@ export interface CallExtraction {
   recommendation: Recommendation;
   recommendation_reason: string;
   special_notes: string | null;
+  call_summary: string | null;
+  highlights: string[] | null;
 }
 
 export interface CreateMissionInput {

@@ -127,9 +127,18 @@ const ALL_VALID = [
 
 export function isInBayArea(query: string): boolean {
   const lower = query.toLowerCase().trim();
-  return ALL_VALID.some(
-    (area) => lower.includes(area.toLowerCase()) || area.toLowerCase().includes(lower)
-  );
+  if (!lower) return false;
+
+  if (ALL_VALID.some(
+    (area) => lower.includes(area) || area.includes(lower)
+  )) return true;
+
+  // Accept addresses containing "san francisco", "sf", "ca 94xxx", or common SF zip codes
+  if (/\bsan\s*francisco\b/.test(lower) || /\bsf\b/.test(lower)) return true;
+  if (/\bca\s+94\d{3}\b/.test(lower)) return true;
+  if (/\b(oakland|berkeley|palo alto|san jose|daly city|san mateo)\b/.test(lower)) return true;
+
+  return false;
 }
 
 const REJECTIONS = [

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Settings, History, Menu, X } from "lucide-react";
+import { Search, Settings, History, Menu, X, MapIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { useState } from "react";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: History },
   { href: "/dashboard/scout", label: "Scout", icon: Search },
+  { href: "/dashboard/explore", label: "Explore", icon: MapIcon },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
