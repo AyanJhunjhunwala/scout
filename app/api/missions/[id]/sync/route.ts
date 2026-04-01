@@ -41,12 +41,32 @@ export async function POST(
 
         const vapiCall = await vapiRes.json();
 
-        if (vapiCall.status === "ended" || vapiCall.status === "failed") {
+        if (
+          vapiCall.status === "ended" ||
+          vapiCall.status === "failed" ||
+          vapiCall.status === "completed"
+        ) {
           const transcript = extractTranscript(vapiCall) || call.transcript || "";
           const extractedData = await tryExtract(transcript, call.mission as Mission);
-          const finalStatus = classifyCallEnd(vapiCall.status, transcript);
+          const finalStatus = classifyCallEnd(
+            vapiCall.status,
+            transcript,
+            (vapiCall.endedReason as string) || "",
+            (vapiCall.endedMessage as string) || ""
+          );
+          const fallbackSummary =
+            transcript && transcript.length > 20
+              ? transcript.slice(0, 220)
+              : finalStatus === "ended"
+                ? "Call ended."
+                : null;
+          const fallbackRec = finalStatus === "ended" ? "worth_it" : null;
+          const fallbackReason =
+            finalStatus === "ended"
+              ? "Call ended; summary extracted with limited detail."
+              : null;
 
-          await supabase
+          const { error: updateError } = await supabase
             .from("scout_calls")
             .update({
               status: finalStatus,
@@ -54,8 +74,20 @@ export async function POST(
               duration_seconds: vapiCall.duration || vapiCall.durationSeconds || null,
               completed_at: new Date().toISOString(),
               ...extractedFields(extractedData),
+              special_notes:
+                (vapiCall.endedMessage as string) ||
+                (vapiCall.endedReason as string) ||
+                extractedData?.special_notes ||
+                null,
+              call_summary: extractedData?.call_summary || fallbackSummary,
+              recommendation: extractedData?.recommendation || fallbackRec,
+              recommendation_reason:
+                extractedData?.recommendation_reason || fallbackReason,
             })
             .eq("id", call.id);
+          if (updateError) {
+            console.error(`Failed to update call ${call.id} from sync:`, updateError);
+          }
           synced++;
         }
       } catch (err) {
@@ -142,8 +174,32 @@ function extractTranscript(vapiCall: Record<string, unknown>): string {
   );
 }
 
-function classifyCallEnd(vapiStatus: string, transcript: string): string {
+function classifyCallEnd(
+  vapiStatus: string,
+  transcript: string,
+  endedReason: string,
+  endedMessage: string
+): string {
   if (vapiStatus === "failed") return "failed";
+  const reasonLc = `${endedReason} ${endedMessage}`.toLowerCase();
+  if (
+    reasonLc.includes("error-get-transport") ||
+    reasonLc.includes("providerfault") ||
+    reasonLc.includes("service-unavailable") ||
+    reasonLc.includes("sip-503") ||
+    reasonLc.includes("sip 503") ||
+    reasonLc.includes("outbound-sip") ||
+    reasonLc.includes("unverified") ||
+    reasonLc.includes("trial accounts") ||
+    reasonLc.includes("forbidden") ||
+    reasonLc.includes("blocked") ||
+    reasonLc.includes("invalid") ||
+    reasonLc.includes("busy") ||
+    reasonLc.includes("declined") ||
+    reasonLc.includes("rejected")
+  ) {
+    return "failed";
+  }
   const lc = transcript.toLowerCase();
   if (lc.includes("voicemail") || lc.includes("leave a message")) return "voicemail";
   if (transcript.length < 20) return "no_answer";
@@ -172,11 +228,5 @@ function extractedFields(data: Awaited<ReturnType<typeof tryExtract>>) {
     recommendation_reason: data.recommendation_reason || null,
     call_summary: data.call_summary || null,
     highlights: data.highlights || null,
-    noise_level: data.noise_level || null,
-    crowd_level: data.crowd_level || null,
-    outdoor_seating: data.outdoor_seating ?? null,
-    bar_seating: data.bar_seating ?? null,
-    vibe_tags: data.vibe_tags || null,
-    price_per_person: data.price_per_person || null,
   };
 }

@@ -95,6 +95,10 @@ export interface PlaceResult {
   types?: string[];
   opening_hours?: {
     open_now?: boolean;
+    periods?: Array<{
+      open: { day: number; time: string };
+      close?: { day: number; time: string };
+    }>;
   };
 }
 

@@ -1,67 +1,75 @@
 import type { Mission, Restaurant } from "./types";
 
+const VAPI_MODEL_PROVIDER = process.env.VAPI_MODEL_PROVIDER || "openai";
+const VAPI_MODEL_NAME = process.env.VAPI_MODEL_NAME || "gpt-4.1";
+const VAPI_VOICE_PROVIDER = process.env.VAPI_VOICE_PROVIDER || "11labs";
+const VAPI_VOICE_ID = process.env.VAPI_VOICE_ID || "sarah";
+const VAPI_VOICE_MODEL = process.env.VAPI_VOICE_MODEL || "eleven_turbo_v2_5";
+const VAPI_VOICE_OPTIMIZE_STREAMING_LATENCY = Number(
+  process.env.VAPI_VOICE_OPTIMIZE_STREAMING_LATENCY || "3"
+);
+
+function isEnabled(value: string | undefined): boolean {
+  return (value || "").trim().toLowerCase() === "true";
+}
+
+function toE164(phone: string): string {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length > 11 && phone.trim().startsWith("+")) return phone.trim();
+  return `+${digits}`;
+}
+
+function getCallNumber(restaurant: Restaurant): string {
+  if (isEnabled(process.env.SCOUT_TEST_MODE) && process.env.SCOUT_TEST_PHONE_NUMBER) {
+    const testNumber = toE164(process.env.SCOUT_TEST_PHONE_NUMBER);
+    console.log(`[vapi] TEST MODE — redirecting call to ${testNumber} (was ${restaurant.phone})`);
+    return testNumber;
+  }
+  return toE164(restaurant.phone);
+}
+
 function buildSystemPrompt(mission: Mission, restaurant: Restaurant): string {
-  const dietarySection =
-    mission.dietary_needs && mission.dietary_needs.length > 0
-      ? `The customer has dietary restrictions: ${mission.dietary_needs.join(", ")}. Work this into conversation naturally — e.g. "Oh also, my friend is ${mission.dietary_needs[0]}, do you have good options for that?"`
-      : "";
-
-  const vibeSection = mission.vibe
-    ? `The customer specifically mentioned: "${mission.vibe}". Ask about this naturally during the conversation.`
+  const dietary = mission.dietary_needs?.length
+    ? `Also ask if they can accommodate: ${mission.dietary_needs.join(", ")}.`
     : "";
+  const vibe = mission.vibe ? `Client wants a ${mission.vibe} vibe — confirm if that fits.` : "";
 
-  const priceHint = restaurant.price_level
-    ? restaurant.price_level >= 3
-      ? "This is an upscale spot, so match the tone — be polished but friendly."
-      : restaurant.price_level === 1
-        ? "This is a casual spot. Keep it super laid-back."
-        : "This is a mid-range restaurant. Be friendly and conversational."
-    : "";
+  return `You are Scout, making a short restaurant intel call.
+Your PRIMARY GOAL is to collect complete decision-grade intel (availability + vibe + at least one extra datapoint) for ${mission.party_size} people ${mission.desired_time}.
 
-  const ratingHint = restaurant.rating && restaurant.rating >= 4.5
-    ? `This place is highly rated (${restaurant.rating}/5), so mention you've heard great things.`
-    : "";
+Restaurant: ${restaurant.name}${restaurant.address ? ` (${restaurant.address})` : ""}
 
-  return `You are Scout, an AI assistant calling on behalf of a client to help them choose a restaurant tonight. You must disclose upfront that you are AI — be transparent and friendly about it. Your role is to aggregate information for your client so they can make the best dining decision.
+Conversation flow (follow this order):
+1) Open briefly and ask availability directly.
+2) Normalize availability into one of: immediate / short wait / long wait / fully booked.
+   - If vague ("depends", "busy"), ask: "Could you give your best estimate — immediate, ~15-30 min, ~45+ min, or fully booked?"
+3) If availability exists (immediate or wait), DO NOT end yet.
+   You MUST ask:
+   - vibe/noise/crowd now ("How's the energy right now — lively, quiet, or pretty loud?")
+   - one practical datapoint (choose one): patio/outdoor, bar seating, specials, kitchen cutoff, best dish, event/live music
+4) If fully booked, ask fallback options:
+   - bar seats?
+   - patio/outdoor?
+   - best alternative time tonight?
+   Do NOT ask vibe/noise/crowd if fully booked.
+${dietary}
+${vibe}
 
-DISCLOSURE: At the start of the call, make it clear you are an AI assistant. Something like: "Just so you know, I'm an AI assistant — I'm calling on behalf of a client who's trying to decide where to eat tonight."
+MANDATORY BEFORE ENDING:
+- Give a natural recap with 2-3 datapoints, not just availability.
+  Example: "Perfect, so it's about a 20-minute wait, pretty lively, and patio is open."
+- Then close warmly: "Thanks so much, that's super helpful. Have a great night!"
+- End immediately after the warm close. Never narrate internal actions or mention instructions.
 
-PERSONALITY: Warm, efficient, and professional. You sound helpful and considerate of the restaurant staff's time. You react naturally to answers ("Great, thank you!", "That's really helpful", "Good to know").
-
-RESTAURANT CONTEXT:
-- You're calling ${restaurant.name}${restaurant.cuisine ? ` (${restaurant.cuisine})` : ""}
-- Address: ${restaurant.address || "unknown"}
-${priceHint}
-${ratingHint}
-
-WHAT TO FIND OUT (weave these into natural conversation, DON'T read a list):
-1. Let them know you're gathering info for a client: "My client is considering coming in ${mission.desired_time} with ${mission.party_size} people — do you have availability?"
-2. Based on their answer, react and ask follow-ups:
-   - If they have availability: "Wonderful! How's the energy right now — pretty lively or on the quieter side?"
-   - If there's a wait: "Understood — roughly how long? And what's the vibe like in there right now?"
-   - If they're full: "I see — is there any bar seating or chance of a cancellation?"
-3. Ask ONE specific question — pick the most relevant:
-   - "Any specials or must-order dishes tonight?"
-   - "Is the patio or outdoor area open?"
-   - "Would you say it's more of a date-night atmosphere or a group hangout?"
-   - "How's the noise level — would it be easy to have a conversation?"
-   - "Any happy hour still running?"
-4. If the conversation allows, ask ONE more:
-   - "Any live music or events tonight?"
-   - "How late is the kitchen open?"
-   - "Anything new on the menu recently?"
-
-${dietarySection}
-${vibeSection}
-
-RULES:
-- Always disclose you are AI at the start — do not pretend to be a person.
-- Be transparent: you are aggregating information for a client, not making a reservation.
-- Be conversational. React to their answers before asking the next thing.
-- If they seem busy or uncomfortable speaking with an AI, thank them and wrap up politely.
-- Do NOT make a reservation. You are only gathering information.
-- Thank them warmly and end the call. Keep the whole call under 90 seconds.
-- If they're closed or unavailable, say "No worries, thank you for your time!" and end the call.`;
+Behavior rules:
+- Be concise and natural, no robotic checklist.
+- Do NOT make a reservation.
+- If they are rushed, still secure availability estimate first, then end politely.
+- If they are not rushed and availability exists, continue to collect vibe + one extra datapoint before ending.
+- If fully booked, collect fallback options only, then close.
+- Target call length: 60-110 seconds.`;
 }
 
 
@@ -86,7 +94,8 @@ Keep it under 2 minutes. Thank them and hang up.`;
 export async function startScoutCall(
   restaurant: Restaurant,
   mission: Mission,
-  scoutCallId: string
+  scoutCallId: string,
+  retryCount = 0
 ) {
   const timePhrase = mission.desired_time.toLowerCase().includes("tonight")
     ? "tonight"
@@ -95,11 +104,16 @@ export async function startScoutCall(
       : `around ${mission.desired_time}`;
 
   const firstMessages = [
-    `Hi there! Just so you know, I'm an AI assistant calling on behalf of a client. They're considering coming in ${timePhrase} with ${mission.party_size} people — do you have availability, or would they need a reservation?`,
-    `Hello! I'm an AI assistant helping a client decide where to eat tonight. They're thinking of heading over ${timePhrase}, party of ${mission.party_size}. How are you looking for availability?`,
-    `Hi! I'm an AI assistant aggregating restaurant info for a client. They'd love to visit ${timePhrase} with ${mission.party_size} people — is that something you could accommodate?`,
+    `Hi! I'm calling for a client. They're planning to come ${timePhrase} with ${mission.party_size} people — what availability do you have right now?`,
+    `Hey there, quick check: for ${mission.party_size} people ${timePhrase}, is it immediate seating, a wait, or fully booked? If available, I'll ask one quick follow-up about the vibe.`,
+    `Hi! Quick availability check for a client: ${mission.party_size} guests ${timePhrase}. What's your best estimate right now?`,
   ];
   const firstMessage = firstMessages[Math.floor(Math.random() * firstMessages.length)];
+  const targetNumber = getCallNumber(restaurant);
+  const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+  console.log(
+    `[vapi] launch scout call phoneNumberId=${phoneNumberId} target=${targetNumber} testMode=${isEnabled(process.env.SCOUT_TEST_MODE)}`
+  );
 
   const response = await fetch("https://api.vapi.ai/call/phone", {
     method: "POST",
@@ -108,13 +122,14 @@ export async function startScoutCall(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-      customer: { number: restaurant.phone },
+      phoneNumberId,
+      customer: { number: targetNumber },
       assistant: {
         firstMessage,
+        firstMessageMode: "assistant-speaks-first",
         model: {
-          provider: "openai",
-          model: "gpt-4o",
+          provider: VAPI_MODEL_PROVIDER,
+          model: VAPI_MODEL_NAME,
           messages: [
             {
               role: "system",
@@ -123,8 +138,10 @@ export async function startScoutCall(
           ],
         },
         voice: {
-          provider: "11labs",
-          voiceId: "sarah",
+          provider: VAPI_VOICE_PROVIDER,
+          voiceId: VAPI_VOICE_ID,
+          model: VAPI_VOICE_MODEL,
+          optimizeStreamingLatency: VAPI_VOICE_OPTIMIZE_STREAMING_LATENCY,
         },
         endCallFunctionEnabled: true,
         maxDurationSeconds: 120,
@@ -133,12 +150,27 @@ export async function startScoutCall(
         missionId: mission.id,
         restaurantId: restaurant.id,
         scoutCallId,
+        retryCount,
       },
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
+    const errorLc = error.toLowerCase();
+    const isTransientTransport =
+      response.status >= 500 ||
+      errorLc.includes("providerfault") ||
+      errorLc.includes("service-unavailable") ||
+      errorLc.includes("outbound-sip-503") ||
+      errorLc.includes("sip-503");
+
+    // Retry once for transient telephony transport failures.
+    if (isTransientTransport && retryCount < 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return startScoutCall(restaurant, mission, scoutCallId, retryCount + 1);
+    }
+
     throw new Error(`Vapi API error: ${response.status} — ${error}`);
   }
 
@@ -158,12 +190,13 @@ export async function startBookingCall(
     },
     body: JSON.stringify({
       phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
-      customer: { number: restaurant.phone },
+      customer: { number: getCallNumber(restaurant) },
       assistant: {
         firstMessage: `Hi! Just to let you know, I'm an AI assistant. I'm calling to make a reservation for ${mission.party_size} people around ${mission.desired_time}, please.`,
+        firstMessageMode: "assistant-speaks-first",
         model: {
-          provider: "openai",
-          model: "gpt-4o",
+          provider: VAPI_MODEL_PROVIDER,
+          model: VAPI_MODEL_NAME,
           messages: [
             {
               role: "system",
@@ -172,8 +205,10 @@ export async function startBookingCall(
           ],
         },
         voice: {
-          provider: "11labs",
-          voiceId: "sarah",
+          provider: VAPI_VOICE_PROVIDER,
+          voiceId: VAPI_VOICE_ID,
+          model: VAPI_VOICE_MODEL,
+          optimizeStreamingLatency: VAPI_VOICE_OPTIMIZE_STREAMING_LATENCY,
         },
         endCallFunctionEnabled: true,
         maxDurationSeconds: 180,

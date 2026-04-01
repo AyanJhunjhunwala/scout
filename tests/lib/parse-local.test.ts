@@ -17,10 +17,9 @@ describe("parseLocally — neighborhood extraction", () => {
     expect(r.neighborhood).toBe("North Beach");
   });
 
-  it("extracts Castro (the Castro → The Castro)", () => {
+  it("extracts Castro from 'in the Castro'", () => {
     const r = parseLocally("casual tacos in the Castro for 3 tonight");
-    // "The Castro" is longer than "Castro" and matches first per length-sorted list
-    expect(r.neighborhood).toBe("The Castro");
+    expect(r.neighborhood).toBe("Castro");
   });
 
   it("extracts Marina (Bay Area city)", () => {
@@ -38,7 +37,7 @@ describe("parseLocally — neighborhood extraction", () => {
     expect(r.neighborhood).toBe("Hayes Valley");
   });
 
-  it("prefers longer neighborhood match (Hayes Valley over Hayes)", () => {
+  it("extracts multi-word neighborhoods like Hayes Valley", () => {
     const r = parseLocally("dinner in Hayes Valley");
     expect(r.neighborhood).toBe("Hayes Valley");
   });

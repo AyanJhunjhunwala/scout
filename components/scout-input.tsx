@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Search, MapPin, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { isInBayArea, getRandomRejection, getNeighborhoodSuggestions } from "@/lib/sf-neighborhoods";
+import { Loader2, Search, MapPin } from "lucide-react";
+import { getNeighborhoodSuggestions } from "@/lib/sf-neighborhoods";
 import type { CreateMissionInput } from "@/lib/types";
 
 interface ScoutInputProps {
@@ -23,20 +22,12 @@ export function ScoutInput({ onSubmit, loading, initialQuery }: ScoutInputProps)
   const [desiredTime, setDesiredTime] = useState("tonight around 8pm");
   const [vibe, setVibe] = useState("");
   const [dietaryNeeds, setDietaryNeeds] = useState("");
-  const [rejection, setRejection] = useState<string | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const suggestions = getNeighborhoodSuggestions(neighborhood);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRejection(null);
-
-    if (!isInBayArea(neighborhood)) {
-      setRejection(getRandomRejection());
-      return;
-    }
-
     await onSubmit({
       neighborhood,
       party_size: parseInt(partySize, 10),
@@ -57,25 +48,6 @@ export function ScoutInput({ onSubmit, loading, initialQuery }: ScoutInputProps)
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Rejection banner */}
-        {rejection && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4">
-            <span className="text-2xl shrink-0">🌉</span>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-orange-900">
-                Bay Area only, friend.
-              </p>
-              <p className="mt-1 text-sm text-orange-700">{rejection}</p>
-            </div>
-            <button
-              onClick={() => setRejection(null)}
-              className="shrink-0 rounded-lg p-1 text-orange-400 hover:bg-orange-100 hover:text-orange-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="relative space-y-2">
@@ -87,16 +59,10 @@ export function ScoutInput({ onSubmit, loading, initialQuery }: ScoutInputProps)
                   id="neighborhood"
                   placeholder="Mission, Hayes Valley, North Beach..."
                   value={neighborhood}
-                  onChange={(e) => {
-                    setNeighborhood(e.target.value);
-                    setRejection(null);
-                  }}
+                  onChange={(e) => setNeighborhood(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  className={cn(
-                    "h-11 text-base",
-                    rejection && "border-orange-300 focus-visible:ring-orange-200"
-                  )}
+                  className="h-11 text-base"
                   required
                 />
                 {showSuggestions && suggestions.length > 0 && (
@@ -107,7 +73,6 @@ export function ScoutInput({ onSubmit, loading, initialQuery }: ScoutInputProps)
                         type="button"
                         onMouseDown={() => {
                           setNeighborhood(s);
-                          setRejection(null);
                           setShowSuggestions(false);
                         }}
                         className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-orange-50"

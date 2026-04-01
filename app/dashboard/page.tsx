@@ -6,7 +6,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, ArrowRight, Trophy, Clock, Users, MapPin, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Plus, ArrowRight, Trophy, Clock, Users, MapPin, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createSupabaseBrowser } from "@/lib/supabase";
 import { useTasteProfile } from "@/lib/taste-profile";
@@ -31,6 +32,20 @@ export default function DashboardPage() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [summaries, setSummaries] = useState<Record<string, MissionSummary>>({});
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function handleDelete(e: React.MouseEvent, missionId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Delete this mission and all its calls?")) return;
+    setDeleting(missionId);
+    try {
+      await fetch(`/api/missions/${missionId}`, { method: "DELETE" });
+      setMissions((prev) => prev.filter((m) => m.id !== missionId));
+    } finally {
+      setDeleting(null);
+    }
+  }
   const { profile } = useTasteProfile();
 
   const topNeighborhood = Object.entries(profile.neighborhoods).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null;
@@ -159,6 +174,15 @@ export default function DashboardPage() {
                       >
                         {mission.status}
                       </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleDelete(e, mission.id)}
+                        disabled={deleting === mission.id}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                       <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </CardHeader>

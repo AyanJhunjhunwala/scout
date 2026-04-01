@@ -1,5 +1,3 @@
-import { SF_NEIGHBORHOODS, BAY_AREA_CITIES } from "./sf-neighborhoods";
-
 export interface ParseResult {
   neighborhood: string | null;
   party_size: number | null;
@@ -10,10 +8,16 @@ export interface ParseResult {
   questions: string[];
 }
 
-const ALL_LOCATIONS = [
-  ...SF_NEIGHBORHOODS.map((n) => n as string),
-  ...BAY_AREA_CITIES.map((n) => n as string),
-].sort((a, b) => b.length - a.length); // longest first to match "Hayes Valley" before "Hayes"
+// Words that should not be treated as part of a neighborhood name
+const LOCATION_STOP_WORDS = new Set([
+  "the", "a", "an", "for", "with", "of", "and", "or", "to", "on",
+  "tonight", "today", "tomorrow", "evening", "morning", "afternoon", "night",
+  "dinner", "lunch", "brunch", "breakfast", "late",
+  "my", "me", "i", "us", "we", "spot", "place", "restaurant", "bar", "cafe",
+  "group", "party", "people", "friends", "person", "guests", "solo",
+  "some", "good", "great", "nice", "cozy", "casual", "chill",
+  "around", "about", "hour", "time", "area",
+]);
 
 const VIBE_WORDS: Record<string, string> = {
   chill: "chill",
@@ -55,21 +59,48 @@ const DIETARY_WORDS = [
   "paleo",
 ];
 
+function collectPlaceWords(words: string[], text: string, lower: string): string | null {
+  const placeWords: string[] = [];
+  for (const word of words) {
+    if (LOCATION_STOP_WORDS.has(word) || /^\d/.test(word)) break;
+    placeWords.push(word);
+  }
+  if (placeWords.length === 0) return null;
+
+  // Recover original casing from the source text
+  const joined = placeWords.join(" ");
+  const srcIdx = lower.indexOf(joined);
+  const original = srcIdx >= 0 ? text.slice(srcIdx, srcIdx + joined.length) : joined;
+
+  // Title-case if entirely lowercase
+  return original === original.toLowerCase()
+    ? original.replace(/\b\w/g, (c) => c.toUpperCase())
+    : original;
+}
+
 function extractNeighborhood(text: string): string | null {
   const lower = text.toLowerCase();
-  for (const loc of ALL_LOCATIONS) {
-    if (lower.includes(loc.toLowerCase())) {
-      return loc;
+
+  // Primary: location after "in [the] X", "near X", "at X", "around X"
+  const prepMatch = lower.match(/\b(?:in|near|at|around)\s+(?:the\s+)?([a-z][\w -]{1,40})/);
+  if (prepMatch) {
+    const words = prepMatch[1].trim().split(/\s+/);
+    const result = collectPlaceWords(words, text, lower);
+    if (result) return result;
+  }
+
+  // Fallback: capitalized word(s) at the start of each sentence
+  // Handles direct answers like "Hayes Valley, for 4" or follow-up messages like
+  // "I want dinner. Hayes Valley for 4 at 8pm"
+  for (const sentence of text.split(/[.!?]\s+/)) {
+    const capMatch = sentence.match(/^(?:the\s+)?([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)/);
+    if (capMatch) {
+      const words = capMatch[1].split(/\s+/).map((w) => w.toLowerCase());
+      const result = collectPlaceWords(words, text, lower);
+      if (result) return result;
     }
   }
-  // Handle "in X" pattern for neighborhoods we might not have exact match for
-  const inMatch = text.match(/\bin\s+(?:the\s+)?([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)/);
-  if (inMatch) {
-    const candidate = inMatch[1];
-    for (const loc of ALL_LOCATIONS) {
-      if (loc.toLowerCase() === candidate.toLowerCase()) return loc;
-    }
-  }
+
   return null;
 }
 

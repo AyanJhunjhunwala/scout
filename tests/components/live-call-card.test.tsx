@@ -235,19 +235,19 @@ describe("LiveCallCard — taste match", () => {
 // ── Non-ended terminal states ─────────────────────────────────────────────────
 
 describe("LiveCallCard — terminal non-ended states", () => {
-  it("shows 'No one picked up' for no_answer", () => {
+  it("shows fallback message and links for no_answer", () => {
     render(<LiveCallCard call={{ ...baseCall, status: "no_answer" }} restaurant={restaurant} />);
-    expect(screen.getByText("No one picked up")).toBeInTheDocument();
+    expect(screen.getByText(/no one picked up/i)).toBeInTheDocument();
   });
 
-  it("shows 'Reached voicemail' for voicemail", () => {
+  it("shows fallback message for voicemail", () => {
     render(<LiveCallCard call={{ ...baseCall, status: "voicemail" }} restaurant={restaurant} />);
-    expect(screen.getByText("Reached voicemail")).toBeInTheDocument();
+    expect(screen.getByText(/went to voicemail/i)).toBeInTheDocument();
   });
 
-  it("shows 'Call failed' for failed", () => {
+  it("shows fallback message for failed", () => {
     render(<LiveCallCard call={{ ...baseCall, status: "failed" }} restaurant={restaurant} />);
-    expect(screen.getByText("Call failed")).toBeInTheDocument();
+    expect(screen.getByText(/call failed/i)).toBeInTheDocument();
   });
 });
 

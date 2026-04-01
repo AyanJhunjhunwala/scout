@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { searchRestaurants } from "@/lib/google-places";
 import { formatPhoneForVapi } from "@/lib/google-places";
-import { isInBayArea, getRandomRejection } from "@/lib/sf-neighborhoods";
 import type { CreateMissionInput, PlaceResult } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -16,17 +15,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!isInBayArea(neighborhood)) {
-    return NextResponse.json(
-      { error: getRandomRejection() },
-      { status: 422 }
-    );
-  }
-
   const supabase = createSupabaseAdmin();
 
   try {
-    const places = await searchRestaurants(neighborhood);
+    const places = await searchRestaurants(neighborhood, desired_time);
 
     const restaurantRows = await Promise.all(
       places.map(async (place: PlaceResult) => {

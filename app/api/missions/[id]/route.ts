@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase";
 
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = createSupabaseAdmin();
+
+  // Delete child rows first (no cascade in schema)
+  const { error: callsError } = await supabase
+    .from("scout_calls")
+    .delete()
+    .eq("mission_id", id);
+
+  if (callsError) {
+    return NextResponse.json({ error: "Failed to delete calls" }, { status: 500 });
+  }
+
+  const { error } = await supabase.from("missions").delete().eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: "Failed to delete mission" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

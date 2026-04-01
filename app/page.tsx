@@ -7,7 +7,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MapPin, Phone, Sparkles, Map } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SF_NEIGHBORHOODS } from "@/lib/sf-neighborhoods";
+const NEIGHBORHOOD_PILL_LIST = [
+  "Mission", "Hayes Valley", "North Beach", "Castro", "Marina",
+  "SoMa", "Japantown", "Nob Hill", "Russian Hill", "Pacific Heights",
+  "Sunset", "Richmond", "Dogpatch", "Bernal Heights",
+];
 
 const SUGGESTIONS = [
   "Chill dinner in Hayes Valley, 2 people, tonight at 8",
@@ -20,7 +24,7 @@ const SUGGESTIONS = [
   "Late night bites in Dogpatch, 2 people, 10pm",
 ];
 
-const NEIGHBORHOOD_PILLS = SF_NEIGHBORHOODS.slice(0, 14);
+const NEIGHBORHOOD_PILLS = NEIGHBORHOOD_PILL_LIST;
 
 const USE_CASES = [
   {

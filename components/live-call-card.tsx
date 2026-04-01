@@ -327,13 +327,39 @@ export function LiveCallCard({ call, restaurant, mission, onBook, bookingLoading
           </div>
         )}
 
-        {/* Non-ended done states */}
+        {/* Non-ended done states — show retry + fallback options */}
         {isDone && call.status !== "ended" && (
-          <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-            <PhoneOff className="h-4 w-4" />
-            {call.status === "no_answer" ? "No one picked up"
-              : call.status === "voicemail" ? "Reached voicemail"
-              : "Call failed"}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <PhoneOff className="h-4 w-4 shrink-0" />
+              <span>
+                {call.status === "no_answer" ? "No one picked up"
+                  : call.status === "voicemail" ? "Went to voicemail"
+                  : "Call failed"}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {openTableUrl && (
+                <a
+                  href={openTableUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
+                >
+                  OpenTable
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              {restaurant.phone && (
+                <a
+                  href={`tel:${restaurant.phone}`}
+                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100"
+                >
+                  <Phone className="h-3 w-3" />
+                  Call directly
+                </a>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

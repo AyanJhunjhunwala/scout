@@ -10,92 +10,10 @@ import { createSupabaseBrowser } from "@/lib/supabase";
 import { useTasteProfile, scoreCallForTaste } from "@/lib/taste-profile";
 import type { MissionWithCalls, ScoutCall, Restaurant } from "@/lib/types";
 import {
-  Trophy,
   Clock,
   Users,
   MapPin,
-  TreePine,
-  Wine,
-  TrendingUp,
 } from "lucide-react";
-
-function MissionSummaryPanel({ mission }: { mission: MissionWithCalls }) {
-  const endedCalls = mission.scout_calls.filter((c) => c.status === "ended" && c.recommendation);
-  if (endedCalls.length === 0) return null;
-
-  const bestBet = endedCalls.find((c) => c.recommendation === "best_bet");
-  const withWait = endedCalls.filter((c) => c.wait_time && c.wait_time !== "no wait");
-  const noWait = endedCalls.filter((c) => c.wait_time === "no wait");
-  const withAvailability = endedCalls.filter((c) => c.availability && !c.availability.toLowerCase().includes("fully"));
-  const outdoorAvail = endedCalls.filter((c) => c.outdoor_seating);
-  const barAvail = endedCalls.filter((c) => c.bar_seating);
-  const skipCount = endedCalls.filter((c) => c.recommendation === "skip").length;
-
-  const stats = [
-    bestBet && {
-      icon: Trophy,
-      label: "Top pick",
-      value: (bestBet.restaurant as Restaurant).name,
-      color: "text-green-700",
-      bg: "bg-green-50 border-green-200",
-    },
-    {
-      icon: Clock,
-      label: "No wait available",
-      value: noWait.length > 0 ? `${noWait.length} place${noWait.length > 1 ? "s" : ""}` : withWait.length > 0 ? `${withWait.length} have a wait` : "Unknown",
-      color: noWait.length > 0 ? "text-blue-700" : "text-muted-foreground",
-      bg: "bg-blue-50 border-blue-200",
-    },
-    withAvailability.length > 0 && {
-      icon: Users,
-      label: "Open for you",
-      value: `${withAvailability.length} of ${endedCalls.length}`,
-      color: "text-purple-700",
-      bg: "bg-purple-50 border-purple-200",
-    },
-    outdoorAvail.length > 0 && {
-      icon: TreePine,
-      label: "Outdoor seating",
-      value: `${outdoorAvail.length} option${outdoorAvail.length > 1 ? "s" : ""}`,
-      color: "text-green-700",
-      bg: "bg-green-50 border-green-200",
-    },
-    barAvail.length > 0 && {
-      icon: Wine,
-      label: "Bar seating",
-      value: `${barAvail.length} option${barAvail.length > 1 ? "s" : ""}`,
-      color: "text-blue-700",
-      bg: "bg-blue-50 border-blue-200",
-    },
-    skipCount > 0 && {
-      icon: TrendingUp,
-      label: "Skip",
-      value: `${skipCount} recommended skip`,
-      color: "text-red-600",
-      bg: "bg-red-50 border-red-200",
-    },
-  ].filter(Boolean) as { icon: typeof Trophy; label: string; value: string; color: string; bg: string }[];
-
-  return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
-        <TrendingUp className="h-4 w-4 text-orange-500" />
-        <h2 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Scout Summary</h2>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        {stats.map((s, i) => (
-          <div key={i} className={`rounded-lg border px-3 py-2.5 ${s.bg}`}>
-            <div className={`flex items-center gap-1.5 mb-0.5 ${s.color}`}>
-              <s.icon className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium uppercase tracking-wide">{s.label}</span>
-            </div>
-            <p className={`text-sm font-semibold ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function MissionPage() {
   const { id } = useParams<{ id: string }>();
@@ -242,9 +160,6 @@ export default function MissionPage() {
             : mission.status}
         </Badge>
       </div>
-
-      {/* Summary panel — shown once results start coming in */}
-      {completedCount > 0 && <MissionSummaryPanel mission={mission} />}
 
       {/* Call cards */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

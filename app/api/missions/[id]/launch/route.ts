@@ -4,6 +4,7 @@ import { startScoutCall } from "@/lib/vapi";
 import type { LaunchMissionInput, Mission, Restaurant } from "@/lib/types";
 
 const MAX_CONCURRENT_CALLS = 3;
+const TEST_MODE = (process.env.SCOUT_TEST_MODE || "").trim().toLowerCase() === "true";
 
 export async function POST(
   req: NextRequest,
@@ -52,8 +53,12 @@ export async function POST(
   }
 
   try {
+    // In test mode every call targets the same phone number.
+    // Launching multiple parallel calls to one number is unreliable (carrier/device will suppress).
+    const restaurantsToCall = TEST_MODE ? restaurants.slice(0, 1) : restaurants;
+
     const callRows = await Promise.all(
-      restaurants.map(async (restaurant: Restaurant) => {
+      restaurantsToCall.map(async (restaurant: Restaurant) => {
         const { data: callRow, error } = await supabase
           .from("scout_calls")
           .insert({
@@ -80,6 +85,8 @@ export async function POST(
       batches.push(callRows.slice(i, i + MAX_CONCURRENT_CALLS));
     }
 
+    const launchErrors: string[] = [];
+
     for (const batch of batches) {
       await Promise.all(
         batch.map(async ({ callRow, restaurant }) => {
@@ -103,16 +110,51 @@ export async function POST(
               .eq("id", callRow.id);
           } catch (err) {
             console.error(`Call failed for ${restaurant.name}:`, err);
+            const errorText =
+              err instanceof Error ? err.message : "Failed to start call";
+            launchErrors.push(errorText);
             await supabase
               .from("scout_calls")
-              .update({ status: "failed" })
+              .update({ status: "failed", special_notes: errorText })
               .eq("id", callRow.id);
           }
         })
       );
     }
 
-    return NextResponse.json({ success: true, missionId });
+    if (launchErrors.length === callRows.length) {
+      const providerLimitError = launchErrors.find((e) =>
+        e.toLowerCase().includes("daily outbound call limit")
+      );
+      if (providerLimitError) {
+        return NextResponse.json(
+          {
+            error:
+              "Call provider limit reached for your Vapi phone number. Import your own Twilio number in Vapi (or wait for daily reset) to place more outbound calls.",
+            details: providerLimitError,
+          },
+          { status: 429 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: "All calls failed to start.",
+          details: launchErrors[0],
+        },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      missionId,
+      testMode: TEST_MODE,
+      attemptedCalls: callRows.length,
+      note: TEST_MODE
+        ? "Test mode active: only the first selected restaurant is dialed to avoid parallel calls to the same test number."
+        : undefined,
+    });
   } catch (err) {
     console.error("Launch mission failed:", err);
     return NextResponse.json(

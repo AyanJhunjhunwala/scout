@@ -15,7 +15,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isInBayArea, getRandomRejection } from "@/lib/sf-neighborhoods";
 import { useTasteProfile } from "@/lib/taste-profile";
 import type { Restaurant, Mission } from "@/lib/types";
 
@@ -124,15 +123,6 @@ function ScoutPageContent() {
         setAccumulated(newAcc);
 
         if (data.ready && data.neighborhood) {
-          if (!isInBayArea(data.neighborhood)) {
-            setMessages((prev) => [
-              ...prev,
-              { role: "scout", text: getRandomRejection() },
-            ]);
-            setLoading(false);
-            return;
-          }
-
           const summary = [
             data.neighborhood,
             data.party_size && `${data.party_size} people`,

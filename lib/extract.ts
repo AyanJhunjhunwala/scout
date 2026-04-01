@@ -2,16 +2,19 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { CallExtraction, Mission } from "./types";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 export async function extractCallData(
   transcript: string,
   mission: Mission
 ): Promise<CallExtraction> {
   try {
-    return await extractWithGemini(transcript, mission);
+    const extracted = await extractWithGemini(transcript, mission);
+    return applyTranscriptGuards(extracted, transcript);
   } catch (err) {
     console.error("Gemini extraction failed, using fallback:", err);
-    return extractFallback(transcript);
+    const extracted = extractFallback(transcript);
+    return applyTranscriptGuards(extracted, transcript);
   }
 }
 
@@ -20,7 +23,7 @@ async function extractWithGemini(
   mission: Mission
 ): Promise<CallExtraction> {
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: GEMINI_MODEL,
     generationConfig: {
       responseMimeType: "application/json",
     },
@@ -50,7 +53,13 @@ Return JSON with exactly these fields:
 
 IMPORTANT: You MUST always return a recommendation. If unsure, use "worth_it" as default.
 IMPORTANT: Always include call_summary and at least 2 highlights. Highlights should be specific things mentioned in the call (e.g. "happy hour until 7", "patio is dog-friendly", "jazz band playing tonight").
-IMPORTANT: For noise_level and crowd_level, infer from context clues in the transcript (background noise, staff mentions of busyness, wait times, etc). For vibe_tags, pick 1-3 that best apply.
+IMPORTANT: Only use what is explicitly said in transcript. If not clearly stated, return null.
+IMPORTANT: For noise_level and crowd_level, do NOT infer from wait time or vague clues.
+IMPORTANT: Be strict with availability booleans:
+- If transcript says "no bar", "bar is full", "no bar seats", "bar not available" => "bar_seating": false
+- If transcript says "no patio", "patio closed", "no outdoor", "outdoor not available" => "outdoor_seating": false
+- If transcript says "nothing available", "everything booked", "fully booked", "no availability" => set "availability" to "fully booked" and do NOT set bar/outdoor to true unless explicitly available.
+- Never infer true from just the words "bar" or "patio" if the phrase is negative.
 
 Mission context: ${mission.party_size} people, ${mission.desired_time}, wants ${mission.vibe || "any"} vibe, dietary: ${mission.dietary_needs?.join(", ") || "none"}
 
@@ -88,7 +97,15 @@ export function extractFallback(transcript: string): CallExtraction {
   else if (lc.includes("lively") || lc.includes("fun")) vibe = "lively";
 
   let availability: string | null = null;
-  if (lc.includes("fully booked") || lc.includes("no tables") || lc.includes("no availability")) {
+  if (
+    lc.includes("fully booked") ||
+    lc.includes("no tables") ||
+    lc.includes("no availability") ||
+    lc.includes("nothing available") ||
+    lc.includes("everything booked") ||
+    lc.includes("all booked") ||
+    lc.includes("sold out")
+  ) {
     availability = "fully booked";
   } else if (lc.includes("available") || lc.includes("open") || lc.includes("table")) {
     availability = "tables available";
@@ -105,14 +122,31 @@ export function extractFallback(transcript: string): CallExtraction {
   else if (lc.includes("empty") || lc.includes("slow night")) crowd_level = "empty";
   else if (lc.includes("moderate") || lc.includes("half")) crowd_level = "moderate";
 
+  const hasNegativeOutdoor =
+    /\b(no|not|none|without)\s+(outdoor|patio|terrace)\b/.test(lc) ||
+    /\b(outdoor|patio|terrace)\s+(closed|full|unavailable|not available)\b/.test(lc) ||
+    lc.includes("indoor only");
+  const hasPositiveOutdoor =
+    /\b(outdoor|patio|terrace)\s+(available|open)\b/.test(lc) ||
+    /\bwe have (a )?(patio|outdoor|terrace)\b/.test(lc);
+
   const outdoor_seating =
-    lc.includes("patio") || lc.includes("outdoor") || lc.includes("terrace") ? true
-    : lc.includes("no outdoor") || lc.includes("indoor only") ? false
+    hasNegativeOutdoor ? false
+    : hasPositiveOutdoor ? true
     : null;
 
+  const hasNegativeBar =
+    /\b(no|not|none|without)\s+bar\b/.test(lc) ||
+    /\bno bar seats?\b/.test(lc) ||
+    /\bbar\s+(full|closed|unavailable|not available)\b/.test(lc);
+  const hasPositiveBar =
+    /\bbar\s+(seats?|top)\s+(available|open)\b/.test(lc) ||
+    /\b(bar seats?|bar top)\s+open\b/.test(lc) ||
+    /\bwe have bar seating\b/.test(lc);
+
   const bar_seating =
-    lc.includes("bar seat") || lc.includes("bar top") || lc.includes("bar available") ? true
-    : lc.includes("no bar") ? false
+    hasNegativeBar ? false
+    : hasPositiveBar ? true
     : null;
 
   const vibe_tags: string[] = [];
@@ -128,8 +162,10 @@ export function extractFallback(transcript: string): CallExtraction {
   if (wait_time) highlights.push(`Wait: ${wait_time}`);
   if (vibe) highlights.push(`Vibe: ${vibe}`);
   if (availability) highlights.push(availability);
-  if (outdoor_seating) highlights.push("Patio available");
-  if (bar_seating) highlights.push("Bar seating open");
+  if (outdoor_seating === true) highlights.push("Patio available");
+  if (outdoor_seating === false) highlights.push("No patio/outdoor seating");
+  if (bar_seating === true) highlights.push("Bar seating open");
+  if (bar_seating === false) highlights.push("No bar seating");
 
   return {
     wait_time,
@@ -152,5 +188,64 @@ export function extractFallback(transcript: string): CallExtraction {
     bar_seating,
     vibe_tags: vibe_tags.length > 0 ? vibe_tags : null,
     price_per_person: null,
+  };
+}
+
+function applyTranscriptGuards(data: CallExtraction, transcript: string): CallExtraction {
+  const lc = transcript.toLowerCase();
+
+  const explicitNegativeOutdoor =
+    /\b(no|not|none|without)\s+(outdoor|patio|terrace)\b/.test(lc) ||
+    /\b(outdoor|patio|terrace)\s+(closed|full|unavailable|not available)\b/.test(lc) ||
+    lc.includes("indoor only");
+  const explicitPositiveOutdoor =
+    /\b(outdoor|patio|terrace)\s+(available|open)\b/.test(lc) ||
+    /\bwe have (a )?(patio|outdoor|terrace)\b/.test(lc);
+
+  const explicitNegativeBar =
+    /\b(no|not|none|without)\s+bar\b/.test(lc) ||
+    /\bno bar seats?\b/.test(lc) ||
+    /\bbar\s+(full|closed|unavailable|not available)\b/.test(lc);
+  const explicitPositiveBar =
+    /\bbar\s+(seats?|top)\s+(available|open)\b/.test(lc) ||
+    /\b(bar seats?|bar top)\s+open\b/.test(lc) ||
+    /\bwe have bar seating\b/.test(lc);
+
+  const hasBookedNegative =
+    lc.includes("fully booked") ||
+    lc.includes("no tables") ||
+    lc.includes("no availability") ||
+    lc.includes("nothing available") ||
+    lc.includes("everything booked") ||
+    lc.includes("all booked") ||
+    lc.includes("sold out");
+  const hasBookedPositive =
+    /\b(table|tables|seats?)\s+(available|open)\b/.test(lc) ||
+    /\bwe (do|have)\s+have\s+(availability|tables?)\b/.test(lc);
+
+  const hasExplicitNoise =
+    lc.includes("loud") || lc.includes("noisy") || lc.includes("quiet") || lc.includes("calm");
+  const hasExplicitCrowd =
+    lc.includes("packed") || lc.includes("crowded") || lc.includes("busy") || lc.includes("empty");
+
+  return {
+    ...data,
+    outdoor_seating: explicitNegativeOutdoor
+      ? false
+      : explicitPositiveOutdoor
+        ? true
+        : null,
+    bar_seating: explicitNegativeBar
+      ? false
+      : explicitPositiveBar
+        ? true
+        : null,
+    availability: hasBookedNegative
+      ? "fully booked"
+      : hasBookedPositive
+        ? data.availability
+        : null,
+    noise_level: hasExplicitNoise ? data.noise_level : null,
+    crowd_level: hasExplicitCrowd ? data.crowd_level : null,
   };
 }

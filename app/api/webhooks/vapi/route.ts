@@ -107,6 +107,7 @@ async function handleEvent(
       case "call.ended":
       case "hangup": {
         const artifact = (message.artifact || {}) as Record<string, unknown>;
+        const callObj = (message.call || {}) as Record<string, unknown>;
         const transcript =
           (artifact.transcript as string) ||
           (message.transcript as string) ||
@@ -117,6 +118,16 @@ async function handleEvent(
           (message.duration as number) ||
           (artifact.duration as number) ||
           null;
+        const endedReason =
+          (callObj.endedReason as string) ||
+          (message.endedReason as string) ||
+          (message.ended_reason as string) ||
+          "";
+        const endedMessage =
+          (callObj.endedMessage as string) ||
+          (message.endedMessage as string) ||
+          (message.ended_message as string) ||
+          "";
 
         const { data: scoutCall } = await supabase
           .from("scout_calls")
@@ -126,8 +137,46 @@ async function handleEvent(
 
         if (!scoutCall) break;
 
+        // durationSeconds > 5 means someone answered (even if they hung up quickly)
+        const wasAnswered = typeof durationSeconds === "number" && durationSeconds > 5;
+
+        const lcTranscript = transcript.toLowerCase();
+        const isVoicemail =
+          lcTranscript.includes("voicemail") ||
+          lcTranscript.includes("leave a message") ||
+          lcTranscript.includes("not available");
+
+        const reasonLc = `${endedReason} ${endedMessage}`.toLowerCase();
+        const isTransportFailure =
+          reasonLc.includes("error-get-transport") ||
+          reasonLc.includes("providerfault") ||
+          reasonLc.includes("service-unavailable") ||
+          reasonLc.includes("sip-503") ||
+          reasonLc.includes("sip 503") ||
+          reasonLc.includes("outbound-sip") ||
+          reasonLc.includes("unverified") ||
+          reasonLc.includes("trial accounts") ||
+          reasonLc.includes("forbidden") ||
+          reasonLc.includes("blocked") ||
+          reasonLc.includes("invalid");
+        const isBusySignal =
+          reasonLc.includes("busy") ||
+          reasonLc.includes("declined") ||
+          reasonLc.includes("rejected");
+
+        const finalStatus = isTransportFailure || isBusySignal
+          ? "failed"
+          : isVoicemail
+            ? "voicemail"
+            : wasAnswered
+              ? "ended" // answered — even a cut call counts as ended
+              : transcript.length < 20
+                ? "no_answer"
+                : "ended";
+
+        // Try extraction whenever there's any transcript content
         let extractedData = null;
-        if (transcript && transcript.length > 20) {
+        if (transcript && transcript.trim().length > 0) {
           try {
             extractedData = await extractCallData(
               transcript,
@@ -138,42 +187,44 @@ async function handleEvent(
           }
         }
 
-        const lcTranscript = transcript.toLowerCase();
-        const isVoicemail =
-          lcTranscript.includes("voicemail") ||
-          lcTranscript.includes("leave a message") ||
-          lcTranscript.includes("not available");
+        // If call was answered but cut short, note it in the summary
+        const wasCutShort = wasAnswered && transcript.length < 60;
+        const callSummary =
+          extractedData?.call_summary ||
+          (transcript && transcript.length > 20
+            ? transcript.slice(0, 220)
+            : wasCutShort
+              ? "Call ended before Scout could gather full information."
+              : "Call ended.");
 
-        const finalStatus = isVoicemail
-          ? "voicemail"
-          : transcript.length < 20
-            ? "no_answer"
-            : "ended";
+        const fallbackRecommendation =
+          finalStatus === "ended" ? "worth_it" : null;
+        const fallbackReason =
+          finalStatus === "ended"
+            ? "Call ended; summary extracted with limited detail."
+            : null;
 
-        await supabase
+        const { error: updateError } = await supabase
           .from("scout_calls")
           .update({
             status: finalStatus,
             transcript: transcript || scoutCall.transcript,
             duration_seconds: durationSeconds,
             completed_at: new Date().toISOString(),
+            special_notes: endedMessage || endedReason || extractedData?.special_notes || null,
             wait_time: extractedData?.wait_time || null,
             vibe_report: extractedData?.vibe || null,
             menu_notes: extractedData?.menu_notes || null,
             availability: extractedData?.availability || null,
-            special_notes: extractedData?.special_notes || null,
-            recommendation: extractedData?.recommendation || null,
-            recommendation_reason: extractedData?.recommendation_reason || null,
-            call_summary: extractedData?.call_summary || null,
+            recommendation: extractedData?.recommendation || fallbackRecommendation,
+            recommendation_reason: extractedData?.recommendation_reason || fallbackReason,
+            call_summary: callSummary,
             highlights: extractedData?.highlights || null,
-            noise_level: extractedData?.noise_level || null,
-            crowd_level: extractedData?.crowd_level || null,
-            outdoor_seating: extractedData?.outdoor_seating ?? null,
-            bar_seating: extractedData?.bar_seating ?? null,
-            vibe_tags: extractedData?.vibe_tags || null,
-            price_per_person: extractedData?.price_per_person || null,
           })
           .eq("id", scoutCallId);
+        if (updateError) {
+          console.error("Webhook end-call update failed:", updateError);
+        }
 
         // Check if all calls in mission are done
         if (missionId) {
