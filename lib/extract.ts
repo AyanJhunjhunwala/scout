@@ -39,11 +39,18 @@ Return JSON with exactly these fields:
   "recommendation_reason": "one sentence explaining why",
   "special_notes": "anything else notable" | null,
   "call_summary": "2-3 sentence natural summary of the call — what was said, key info learned, and overall impression",
-  "highlights": ["short phrase the caller mentioned", "another notable detail"] // 2-5 short highlights from the call
+  "highlights": ["short phrase the caller mentioned", "another notable detail"],
+  "noise_level": "quiet" | "moderate" | "loud" | null,
+  "crowd_level": "empty" | "moderate" | "busy" | "packed" | null,
+  "outdoor_seating": true | false | null,
+  "bar_seating": true | false | null,
+  "vibe_tags": ["date-friendly" | "great for groups" | "dog-friendly" | "live music" | "late night" | "good for kids" | "quick bite" | "special occasion" | "sports bar" | "cozy" | "trendy" | "no reservations"],
+  "price_per_person": "~$15-25" | "~$30-50" | "~$60+" | null
 }
 
 IMPORTANT: You MUST always return a recommendation. If unsure, use "worth_it" as default.
 IMPORTANT: Always include call_summary and at least 2 highlights. Highlights should be specific things mentioned in the call (e.g. "happy hour until 7", "patio is dog-friendly", "jazz band playing tonight").
+IMPORTANT: For noise_level and crowd_level, infer from context clues in the transcript (background noise, staff mentions of busyness, wait times, etc). For vibe_tags, pick 1-3 that best apply.
 
 Mission context: ${mission.party_size} people, ${mission.desired_time}, wants ${mission.vibe || "any"} vibe, dietary: ${mission.dietary_needs?.join(", ") || "none"}
 
@@ -66,7 +73,7 @@ ${transcript}`;
   return parsed;
 }
 
-function extractFallback(transcript: string): CallExtraction {
+export function extractFallback(transcript: string): CallExtraction {
   const lc = transcript.toLowerCase();
 
   let wait_time: string | null = null;
@@ -87,12 +94,42 @@ function extractFallback(transcript: string): CallExtraction {
     availability = "tables available";
   }
 
+  let noise_level: CallExtraction["noise_level"] = null;
+  if (lc.includes("loud") || lc.includes("noisy") || lc.includes("can't hear")) noise_level = "loud";
+  else if (lc.includes("quiet") || lc.includes("calm") || lc.includes("peaceful")) noise_level = "quiet";
+  else if (vibe === "busy" || vibe === "lively") noise_level = "moderate";
+
+  let crowd_level: CallExtraction["crowd_level"] = null;
+  if (lc.includes("packed") || lc.includes("crowded")) crowd_level = "packed";
+  else if (lc.includes("busy") || lc.includes("full")) crowd_level = "busy";
+  else if (lc.includes("empty") || lc.includes("slow night")) crowd_level = "empty";
+  else if (lc.includes("moderate") || lc.includes("half")) crowd_level = "moderate";
+
+  const outdoor_seating =
+    lc.includes("patio") || lc.includes("outdoor") || lc.includes("terrace") ? true
+    : lc.includes("no outdoor") || lc.includes("indoor only") ? false
+    : null;
+
+  const bar_seating =
+    lc.includes("bar seat") || lc.includes("bar top") || lc.includes("bar available") ? true
+    : lc.includes("no bar") ? false
+    : null;
+
+  const vibe_tags: string[] = [];
+  if (lc.includes("date") || lc.includes("romantic")) vibe_tags.push("date-friendly");
+  if (lc.includes("group") || lc.includes("party")) vibe_tags.push("great for groups");
+  if (lc.includes("dog") || lc.includes("pet")) vibe_tags.push("dog-friendly");
+  if (lc.includes("live music") || lc.includes("band") || lc.includes("jazz")) vibe_tags.push("live music");
+  if (lc.includes("late night") || lc.includes("open late")) vibe_tags.push("late night");
+
   const hasUsefulInfo = wait_time || vibe || availability;
 
   const highlights: string[] = [];
   if (wait_time) highlights.push(`Wait: ${wait_time}`);
   if (vibe) highlights.push(`Vibe: ${vibe}`);
   if (availability) highlights.push(availability);
+  if (outdoor_seating) highlights.push("Patio available");
+  if (bar_seating) highlights.push("Bar seating open");
 
   return {
     wait_time,
@@ -109,5 +146,11 @@ function extractFallback(transcript: string): CallExtraction {
       ? `The restaurant was reached. ${[wait_time && `Wait time is ${wait_time}.`, vibe && `The vibe is ${vibe}.`, availability && `Availability: ${availability}.`].filter(Boolean).join(" ")}`
       : "The restaurant was reached but limited information could be gathered from the call.",
     highlights: highlights.length > 0 ? highlights : ["Call completed"],
+    noise_level,
+    crowd_level,
+    outdoor_seating,
+    bar_seating,
+    vibe_tags: vibe_tags.length > 0 ? vibe_tags : null,
+    price_per_person: null,
   };
 }

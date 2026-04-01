@@ -52,6 +52,12 @@ export interface ScoutCall {
   recommendation_reason: string | null;
   call_summary: string | null;
   highlights: string[] | null;
+  noise_level: "quiet" | "moderate" | "loud" | null;
+  crowd_level: "empty" | "moderate" | "busy" | "packed" | null;
+  outdoor_seating: boolean | null;
+  bar_seating: boolean | null;
+  vibe_tags: string[] | null;
+  price_per_person: string | null;
   duration_seconds: number | null;
   started_at: string | null;
   completed_at: string | null;
@@ -103,6 +109,24 @@ export interface CallExtraction {
   special_notes: string | null;
   call_summary: string | null;
   highlights: string[] | null;
+  noise_level: "quiet" | "moderate" | "loud" | null;
+  crowd_level: "empty" | "moderate" | "busy" | "packed" | null;
+  outdoor_seating: boolean | null;
+  bar_seating: boolean | null;
+  vibe_tags: string[] | null;
+  price_per_person: string | null;
+}
+
+export interface TasteProfile {
+  neighborhoods: Record<string, number>;
+  vibes: Record<string, number>;
+  times: Record<string, number>;
+  party_sizes: Record<string, number>;
+  features: { outdoor_seating: number; bar_seating: number };
+  price_levels: Record<string, number>;
+  cuisines: Record<string, number>;
+  total_missions: number;
+  total_bookings: number;
 }
 
 export interface CreateMissionInput {

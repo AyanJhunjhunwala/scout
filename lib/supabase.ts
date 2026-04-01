@@ -14,9 +14,15 @@ export function createSupabaseAdmin() {
   );
 }
 
+// Singleton browser client — avoids multiple GoTrueClient instances
+let _browserClient: ReturnType<typeof createClient> | null = null;
+
 export function createSupabaseBrowser() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  if (!_browserClient) {
+    _browserClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+  return _browserClient;
 }

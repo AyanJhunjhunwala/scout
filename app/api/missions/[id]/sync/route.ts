@@ -172,5 +172,11 @@ function extractedFields(data: Awaited<ReturnType<typeof tryExtract>>) {
     recommendation_reason: data.recommendation_reason || null,
     call_summary: data.call_summary || null,
     highlights: data.highlights || null,
+    noise_level: data.noise_level || null,
+    crowd_level: data.crowd_level || null,
+    outdoor_seating: data.outdoor_seating ?? null,
+    bar_seating: data.bar_seating ?? null,
+    vibe_tags: data.vibe_tags || null,
+    price_per_person: data.price_per_person || null,
   };
 }

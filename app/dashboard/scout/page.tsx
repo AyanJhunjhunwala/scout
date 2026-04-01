@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isInBayArea, getRandomRejection } from "@/lib/sf-neighborhoods";
+import { useTasteProfile } from "@/lib/taste-profile";
 import type { Restaurant, Mission } from "@/lib/types";
 
 interface Message {
@@ -55,6 +56,7 @@ function ScoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
+  const { recordMission } = useTasteProfile();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -174,6 +176,14 @@ function ScoutPageContent() {
           setRestaurants(missionData.restaurants);
           setSearching(false);
           setStep("pick");
+
+          // Record mission for taste profile learning
+          recordMission({
+            neighborhood: data.neighborhood!,
+            vibe: data.vibe ?? null,
+            desired_time: data.desired_time!,
+            party_size: data.party_size!,
+          });
           return;
         }
 

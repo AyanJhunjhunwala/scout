@@ -166,6 +166,12 @@ async function handleEvent(
             recommendation_reason: extractedData?.recommendation_reason || null,
             call_summary: extractedData?.call_summary || null,
             highlights: extractedData?.highlights || null,
+            noise_level: extractedData?.noise_level || null,
+            crowd_level: extractedData?.crowd_level || null,
+            outdoor_seating: extractedData?.outdoor_seating ?? null,
+            bar_seating: extractedData?.bar_seating ?? null,
+            vibe_tags: extractedData?.vibe_tags || null,
+            price_per_person: extractedData?.price_per_person || null,
           })
           .eq("id", scoutCallId);
 
